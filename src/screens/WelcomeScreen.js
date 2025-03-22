@@ -10,18 +10,28 @@ const WelcomeScreen = ({ navigation, route }) => {
     if (startLocationTracking) {
       startLocationTracking();
     }
-
     // Navigate to location screen
     navigation.navigate("Location");
+  };
+  const handleGoToProfile = () => {
+    navigation.navigate("Profile");
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Social Proximity</Text>
       <Text style={styles.welcomeText}>Welcome to Social Proximity</Text>
-      <TouchableOpacity style={styles.startButton} onPress={handleStartApp}>
-        <Text style={styles.startButtonText}>Start App</Text>
-      </TouchableOpacity>
+      <View style={styles.optionsContainer}>
+        <Text style={styles.choiceText}>What would you like to do?</Text>
+
+        <TouchableOpacity style={[styles.button, styles.startButton]} onPress={handleStartApp}>
+          <Text style={styles.buttonText}>Start App</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.button, styles.profileButton]} onPress={handleGoToProfile}>
+          <Text style={styles.buttonText}>Create Your Profile</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -29,7 +39,7 @@ const WelcomeScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#000",
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
@@ -37,21 +47,45 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 15,
+    color: "#FFF",
   },
   welcomeText: {
     fontSize: 16,
     textAlign: "center",
-    marginBottom: 30,
+    marginBottom: 40,
     paddingHorizontal: 20,
+    color: "#FFF",
+  },
+  optionsContainer: {
+    width: "100%",
+    alignItems: "center",
+  },
+  choiceText: {
+    fontSize: 18,
+    marginBottom: 20,
+    color: "#FFF",
+    fontWeight: "500",
+  },
+  button: {
+    width: "80%",
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginBottom: 15,
+    alignItems: "center",
   },
   startButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
+    backgroundColor: "#CF86FC",
+    borderStyle: "solid",
+    borderWidth: 2,
+    borderColor: "#FFF",
   },
-  startButtonText: {
+  profileButton: {
+    backgroundColor: "#3700B3",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  buttonText: {
     color: "white",
     fontSize: 18,
     fontWeight: "bold",
