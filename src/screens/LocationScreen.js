@@ -93,21 +93,25 @@ const LocationScreen = ({ navigation }) => {
         <Text style={styles.locationText}>{locationText}</Text>
         {lastUpdated && <Text>Last updated: {lastUpdated}</Text>}
 
-        {/* Ping Test Button and Result */}
-        <TouchableOpacity style={styles.testButton} onPress={handlePingTest}>
-          <Text style={styles.buttonText}>Test Ping Endpoint</Text>
-        </TouchableOpacity>
-
-        {pingResult && (
-          <View style={styles.resultContainer}>
-            <Text style={styles.resultText}>Test Result:</Text>
-            <Text>{pingResult}</Text>
-          </View>
-        )}
-
-        <TouchableOpacity style={styles.exitButton} onPress={handleBackToWelcome}>
-          <Text style={styles.exitButtonText}>Back to Welcome</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          {/* Ping Test Button and Result */}
+          <TouchableOpacity style={[styles.testButton, styles.button]} activeOpacity={0.5} onPress={handlePingTest}>
+            <Text style={styles.buttonText}>Test Ping Endpoint</Text>
+          </TouchableOpacity>
+          {pingResult && (
+            <View style={styles.resultContainer}>
+              <Text style={styles.resultText}>Test Result:</Text>
+              <Text>{pingResult}</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={[styles.exitButton, styles.button]}
+            activeOpacity={0.5}
+            onPress={handleBackToWelcome}
+          >
+            <Text style={styles.buttonText}>Back to Welcome</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
@@ -119,7 +123,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#000",
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
@@ -128,31 +132,21 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
+    color: "#FFF",
   },
   locationText: {
     fontSize: 16,
     marginBottom: 20,
     textAlign: "center",
+    color: "#fff",
   },
-  testButton: {
-    backgroundColor: "#2196F3",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    marginVertical: 10,
-  },
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
   },
 
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
   resultContainer: {
     marginVertical: 10,
     padding: 10,
@@ -163,19 +157,26 @@ const styles = StyleSheet.create({
   resultText: {
     fontWeight: "bold",
     marginBottom: 5,
+    color: "white",
   },
   exitButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#0052CC",
+  },
+  testButton: {
+    backgroundColor: "#0052CC",
+  },
+  button: {
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 25,
     marginTop: 20,
   },
-  exitButtonText: {
+  buttonText: {
     color: "white",
     fontSize: 18,
     fontWeight: "bold",
   },
+  buttonContainer: {},
 });
 
 export default LocationScreen;

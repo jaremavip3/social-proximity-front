@@ -10,6 +10,11 @@ import {
   Platform,
   Alert,
 } from "react-native";
+import { SvgXml } from "react-native-svg";
+
+const arrowBack = `
+   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.1" d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" fill="#ffffff"></path> <path d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" stroke="#ffffff" stroke-width="2"></path> <path d="M8 12L16 12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11 9L8.08704 11.913V11.913C8.03897 11.961 8.03897 12.039 8.08704 12.087V12.087L11 15" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
+`;
 
 export default function ProfileFormScreen({ navigation }) {
   const [formData, setFormData] = useState({
@@ -124,7 +129,12 @@ export default function ProfileFormScreen({ navigation }) {
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
       <ScrollView>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Create Your Profile</Text>
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>Create Your Profile</Text>
+            <TouchableOpacity style={styles.arrowBack} activeOpacity={0.5} onPress={handleGoToWelcome}>
+              <SvgXml xml={arrowBack} width={35} height={35} />
+            </TouchableOpacity>
+          </View>
 
           {renderField("Name", "name", "Enter your name")}
           {renderField("Age", "age", "Enter your age", "numeric")}
@@ -152,11 +162,12 @@ export default function ProfileFormScreen({ navigation }) {
           <TouchableOpacity
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
+            activeOpacity={0.5}
             disabled={isSubmitting}
           >
             <Text style={styles.submitButtonText}>{isSubmitting ? "Submitting..." : "Submit Profile"}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.submitButton} onPress={handleGoToWelcome}>
+          <TouchableOpacity style={styles.submitButton} activeOpacity={0.5} onPress={handleGoToWelcome}>
             <Text style={styles.submitButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -170,16 +181,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
+  headerContainer: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  arrowBack: {
+    backgroundColor: "#0052CC",
+    padding: 5,
+    borderRadius: 13,
+  },
   formContainer: {
     padding: 20,
     marginTop: 60,
     marginBottom: 60,
   },
+
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
+
     color: "#fff",
   },
   fieldContainer: {
@@ -219,6 +242,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 15,
   },
+
   submitButtonDisabled: {
     backgroundColor: "#a5d6a7",
   },

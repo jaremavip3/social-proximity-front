@@ -44,11 +44,11 @@ const WelcomeScreen = ({ navigation, route }) => {
       <View style={styles.optionsContainer}>
         <Text style={styles.choiceText}>What would you like to do?</Text>
 
-        <TouchableOpacity style={[styles.button, styles.startButton]} onPress={handleStartApp}>
+        <TouchableOpacity style={[styles.button, styles.startButton]} activeOpacity={0.5} onPress={handleStartApp}>
           <Text style={styles.buttonText}>Start App</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, styles.profileButton]} onPress={handleGoToProfile}>
+        <TouchableOpacity style={[styles.button, styles.profileButton]} activeOpacity={0.5} onPress={handleGoToProfile}>
           <Text style={styles.buttonText}>Create Your Profile</Text>
         </TouchableOpacity>
       </View>
