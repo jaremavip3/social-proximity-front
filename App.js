@@ -37,10 +37,10 @@ export default function App() {
     console.log(`Username: test01\n Latitude: ${location.coords.latitude}\nLongitude: ${location.coords.longitude}\n`);
     const data = {
       username: "test01",
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
+      latitude: location.coords.latitude.toString(), // Convert to string
+      longitude: location.coords.longitude.toString(), // Convert to string
     };
-    fetch("https://social-proximity-back.onrender.com/save-gps", {
+    fetch("http://54.210.56.10/location/save", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
