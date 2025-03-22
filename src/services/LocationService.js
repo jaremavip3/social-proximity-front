@@ -52,31 +52,32 @@ export const stopTracking = (interval) => {
 };
 
 // Send location data to server
-export const sendLocationToServer = (location) => {
+export async function sendLocationToServer(location) {
   const data = {
     username: "test01",
-    latitude: location.coords.latitude,
-    longitude: location.coords.longitude,
+    longitude: String(location.coords.longitude),
+    latitude: String(location.coords.latitude),
   };
 
-  fetch("https://social-proximity-back.onrender.com/api/save-gps", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      console.log("Location data sent to server!");
-      return response.json();
-    })
-    .then((data) => {
-      console.log("Server response: ", data);
-    })
-    .catch((error) => {
-      console.error("Error sending location data to server: ", error);
+  try {
+    const response = await fetch("http://54.210.56.10/ping", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
     });
-};
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    console.log("Location data sent to server!");
+    const responseData = await response.json();
+    console.log("Server response: ", responseData);
+    return responseData;
+  } catch (error) {
+    console.error("Error sending location data to server: ", error);
+    return { error: error.message };
+  }
+}
