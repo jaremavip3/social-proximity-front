@@ -85,6 +85,10 @@ const LocationScreen = ({ navigation }) => {
     // Navigate back to welcome
     navigation.navigate("Welcome");
   };
+  const handleFindNetwork = () => {
+    // Navigate to find network screen
+    navigation.navigate("FindNetwork");
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>

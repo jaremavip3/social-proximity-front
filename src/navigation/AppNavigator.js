@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import WelcomeScreen from "../screens/WelcomeScreen";
 import LocationScreen from "../screens/LocationScreen";
 import ProfileFormScreen from "../screens/ProfileFormScreen";
+import CommonDataScreen from "../screens/CommonDataScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -20,6 +21,7 @@ const AppNavigator = ({ startLocationTracking }) => {
       <Stack.Screen name="Welcome" component={WelcomeScreen} initialParams={{ startLocationTracking }} />
       <Stack.Screen name="Profile" component={ProfileFormScreen} />
       <Stack.Screen name="Location" component={LocationScreen} />
+      <Stack.Screen name="CommonData" component={CommonDataScreen} />
     </Stack.Navigator>
   );
 };

@@ -22,6 +22,11 @@ const WelcomeScreen = ({ navigation, route }) => {
   const handleGoToProfile = () => {
     navigation.navigate("Profile");
   };
+  // TO BE REMOVED______________!!!_!__!_!__!__!_!__!_!__!___!_!_!
+  const handleGoToCOMMOND_DATA_SCREEN = () => {
+    navigation.navigate("CommonData");
+  };
+
   //_____ANIMATION_____
   const gravity = useAnimatedSensor(SensorType.GRAVITY);
 
@@ -50,6 +55,14 @@ const WelcomeScreen = ({ navigation, route }) => {
 
         <TouchableOpacity style={[styles.button, styles.profileButton]} activeOpacity={0.5} onPress={handleGoToProfile}>
           <Text style={styles.buttonText}>Create Your Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.profileButton]}
+          activeOpacity={0.5}
+          onPress={handleGoToCOMMOND_DATA_SCREEN}
+        >
+          <Text style={styles.buttonText}>TEST COMMOND_DATA</Text>
         </TouchableOpacity>
       </View>
     </View>
