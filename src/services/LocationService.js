@@ -1,4 +1,5 @@
 import * as Location from "expo-location";
+import { fetch } from "expo/fetch";
 
 // Get current location and permission
 export const getLocationData = async () => {
@@ -11,10 +12,13 @@ export const getLocationData = async () => {
     }
 
     let location = await Location.getCurrentPositionAsync({});
-    console.log("Location data update:", JSON.stringify(location, null, 2));
+    // console.log("Location data update:", JSON.stringify(location, null, 2));
 
     // Send location to server
-    sendLocationToServer(location);
+    const result = await sendLocationToServer(location);
+    if (result.error) {
+      console.error("Failed to send location:", result.error);
+    }
 
     return { location };
   } catch (error) {
@@ -43,7 +47,6 @@ export const startTracking = (onSuccess, onError) => {
 
   return interval;
 };
-
 // Stop tracking location
 export const stopTracking = (interval) => {
   if (interval) {
@@ -55,26 +58,35 @@ export const stopTracking = (interval) => {
 export async function sendLocationToServer(location) {
   const data = {
     username: "test01",
-    longitude: String(location.coords.longitude),
-    latitude: String(location.coords.latitude),
+    latitude: String(location.coords.longitude),
+    longitude: String(location.coords.latitude),
   };
 
   try {
-    const response = await fetch("http://54.210.56.10/ping", {
-      method: "GET",
+    // console.log("Sending location data to server...");
+    // console.log("Data:", JSON.stringify(data));
+    const response = await fetch("http://54.210.56.10/location/save", {
+      method: "POST", // Changed from GET to POST since we're sending data
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(data), // This is correct for a POST request
     });
 
+    console.log("Response status:", response.status);
+    const responseText = await response.text();
+    console.log("Raw response:", responseText);
+
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      throw new Error(`HTTP error! Status: ${response.status}, Body: ${responseText}`);
     }
 
-    console.log("Location data sent to server!");
-    const responseData = await response.json();
-    console.log("Server response: ", responseData);
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (e) {
+      responseData = { message: responseText };
+    }
     return responseData;
   } catch (error) {
     console.error("Error sending location data to server: ", error);

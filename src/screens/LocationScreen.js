@@ -1,12 +1,44 @@
 import React, { useState, useEffect, useRef } from "react";
 import { StyleSheet, Text, View, Button, TouchableOpacity } from "react-native";
 import * as Location from "expo-location";
+import { fetch } from "expo/fetch";
 
 const LocationScreen = ({ navigation }) => {
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isTracking, setIsTracking] = useState(true); // Assume tracking is already started
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [pingResult, setPingResult] = useState(null); // Store ping test result
+
+  //  ___FUNCTION___TEST PING ENDPOINT
+  async function testPingEndpoint() {
+    try {
+      const response = await fetch("http://54.210.56.10/ping");
+
+      console.log("Ping status:", response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Ping response:", data);
+      setPingResult(`Success: ${JSON.stringify(data)}`);
+      return data;
+    } catch (error) {
+      console.error("Error testing ping endpoint:", error);
+      setPingResult(`Error: ${error.message}`);
+      return { error: error.message };
+    }
+  }
+  //   ___FUNCTION___HANDLE PING TEST
+  const handlePingTest = async () => {
+    const result = await testPingEndpoint();
+    if (result.error) {
+      Alert.alert("Ping Failed", result.error);
+    } else {
+      Alert.alert("Ping Successful", JSON.stringify(result));
+    }
+  };
 
   // This screen just displays the location - tracking is handled in App.js
   useEffect(() => {
@@ -27,7 +59,8 @@ const LocationScreen = ({ navigation }) => {
     const displayInterval = setInterval(() => {
       Location.getCurrentPositionAsync({})
         .then((location) => {
-          setLocation(location);
+          // setLocation(location);
+          testPingEndpoint();
           setLastUpdated(new Date().toLocaleTimeString());
         })
         .catch((error) => {
@@ -59,6 +92,17 @@ const LocationScreen = ({ navigation }) => {
       <Text style={styles.locationText}>{locationText}</Text>
       {lastUpdated && <Text>Last updated: {lastUpdated}</Text>}
 
+      {/* Ping Test Button and Result */}
+      <TouchableOpacity style={styles.testButton} onPress={handlePingTest}>
+        <Text style={styles.buttonText}>Test Ping Endpoint</Text>
+      </TouchableOpacity>
+      {pingResult && (
+        <View style={styles.resultContainer}>
+          <Text style={styles.resultText}>Ping Result:</Text>
+          <Text>{pingResult}</Text>
+        </View>
+      )}
+
       <TouchableOpacity style={styles.exitButton} onPress={handleBackToWelcome}>
         <Text style={styles.exitButtonText}>Back to Welcome</Text>
       </TouchableOpacity>
@@ -83,6 +127,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     textAlign: "center",
+  },
+  testButton: {
+    backgroundColor: "#2196F3",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginVertical: 10,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  resultContainer: {
+    marginVertical: 10,
+    padding: 10,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 5,
+    width: "100%",
+  },
+  resultText: {
+    fontWeight: "bold",
+    marginBottom: 5,
   },
   exitButton: {
     backgroundColor: "#4CAF50",
