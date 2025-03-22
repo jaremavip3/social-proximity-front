@@ -5,6 +5,8 @@ import * as Location from "expo-location";
 import { NavigationContainer } from "@react-navigation/native";
 import AppNavigator from "./src/navigation/AppNavigator";
 
+import { sendLocationToServer } from "./src/services/LocationService";
+
 export default function App() {
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -24,42 +26,12 @@ export default function App() {
       let location = await Location.getCurrentPositionAsync({});
       setLocation(location);
       setLastUpdated(new Date().toLocaleTimeString());
-      console.log("Location data update:", JSON.stringify(location, null, 2));
-      sendLocationToServer(location);
+      // console.log("Location data update:", JSON.stringify(location, null, 2));
+      await sendLocationToServer(location);
     } catch (error) {
       console.log("Error retrieving location: ", error);
       setErrorMsg(`Error retrieving location: ${error.message}`);
     }
-  }
-
-  // SEND LOCATION TO SERVER
-  function sendLocationToServer(location) {
-    console.log(`Username: test01\n Latitude: ${location.coords.latitude}\nLongitude: ${location.coords.longitude}\n`);
-    const data = {
-      username: "test01",
-      latitude: location.coords.latitude.toString(), // Convert to string
-      longitude: location.coords.longitude.toString(), // Convert to string
-    };
-    fetch("http://54.210.56.10/location/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        console.log("Location data sent to server!");
-        return response.json();
-      })
-      .then((data) => {
-        console.log("Server response: ", data);
-      })
-      .catch((error) => {
-        console.error("Error sending location data to server: ", error);
-      });
   }
 
   //START LOCATION TRACKING
