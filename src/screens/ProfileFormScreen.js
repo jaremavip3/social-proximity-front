@@ -108,6 +108,7 @@ export default function ProfileFormScreen({ navigation }) {
       <TextInput
         style={[styles.input, multiline && styles.multilineInput, errors[field] ? styles.inputError : null]}
         placeholder={placeholder}
+        placeholderTextColor="#999"
         value={formData[field]}
         onChangeText={(text) => handleChange(field, text)}
         keyboardType={keyboardType}
@@ -167,18 +168,19 @@ export default function ProfileFormScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#000",
   },
   formContainer: {
     padding: 20,
     marginTop: 60,
+    marginBottom: 60,
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
-    color: "#333",
+    color: "#fff",
   },
   fieldContainer: {
     marginBottom: 15,
@@ -187,7 +189,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5,
     fontWeight: "500",
-    color: "#444",
+    color: "#e6e6e6",
   },
   input: {
     backgroundColor: "#fff",
@@ -210,11 +212,12 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   submitButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#0052CC",
     paddingVertical: 15,
     borderRadius: 5,
     marginTop: 20,
     alignItems: "center",
+    borderRadius: 15,
   },
   submitButtonDisabled: {
     backgroundColor: "#a5d6a7",
