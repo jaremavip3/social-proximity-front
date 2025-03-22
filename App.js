@@ -2,14 +2,95 @@ import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View, Button, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import * as Location from "expo-location";
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+async function registerForPushNotificationsAsync() {
+  let token;
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      alert('Failed to get push token!');
+      return;
+    }
+
+    token = (await Notifications.getExpoPushTokenAsync()).data;
+  } else {
+    alert('Must use a physical device for Push Notifications');
+  }
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+
+  return token;
+}
+
+async function sendTestNotification() {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Test Notification! 📬",
+      body: "This is a test notification from our app",
+      data: { data: 'This is some test data' },
+    },
+    trigger: { seconds: 2 }, // 2秒后发送通知
+  });
+}
 
 export default function App() {
-  const [appStarted, setAppStarted] = useState(false); // New state to track if app has been started
-  const [location, setLocation] = useState(null); //location data
-  const [errorMsg, setErrorMsg] = useState(null); //error message
-  const [isTracking, setIsTracking] = useState(false); //tracking status
-  const [lastUpdated, setLastUpdated] = useState(null); //last updated time
-  const intervalRef = useRef(null); //interval reference for location tracking
+  const [expoPushToken, setExpoPushToken] = useState("");
+  const [notification, setNotification] = useState(false);
+  const notificationListener = useRef();
+  const responseListener = useRef();
+  
+  const [appStarted, setAppStarted] = useState(false);
+  const [location, setLocation] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [isTracking, setIsTracking] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(token => {
+      setExpoPushToken(token);
+      console.log("Expo Push Token: ", token);
+    });
+
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      setNotification(notification);
+      console.log("Notification received:", notification);
+    });
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log("User interacted with notification:", response);
+    });
+
+    return () => {
+      Notifications.removeNotificationSubscription(notificationListener.current);
+      Notifications.removeNotificationSubscription(responseListener.current);
+    };
+  }, []);
 
   // GET CURRENT LOCATION AND SEND TO SERVER
   async function getLocation() {
@@ -130,6 +211,12 @@ export default function App() {
       ) : (
         <Button title="Stop Tracking" onPress={stopLocationTracking} />
       )}
+      <TouchableOpacity 
+        style={[styles.startButton, { backgroundColor: '#007AFF' }]} 
+        onPress={sendTestNotification}
+      >
+        <Text style={styles.startButtonText}>Send Test Notification</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={styles.startButton} onPress={handleExitApp}>
         <Text style={styles.startButtonText}>Exit the App</Text>
       </TouchableOpacity>
@@ -167,6 +254,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 25,
+    marginTop: 20,
   },
   startButtonText: {
     color: "white",
