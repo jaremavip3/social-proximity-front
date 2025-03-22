@@ -59,7 +59,7 @@ export const sendLocationToServer = (location) => {
     longitude: location.coords.longitude,
   };
 
-  fetch("https://social-proximity-back.onrender.com/save-gps", {
+  fetch("https://social-proximity-back.onrender.com/api/save-gps", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
