@@ -96,6 +96,7 @@ export default function App() {
     setAppStarted(true);
   }
   function handleExitApp() {
+    stopLocationTracking();
     setAppStarted(false);
   }
 
