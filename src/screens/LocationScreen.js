@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef } from "react";
-import { StyleSheet, Text, View, Button, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, Text, View, Button, TouchableOpacity, Alert, ScrollView } from "react-native";
 import * as Location from "expo-location";
 import { fetch } from "expo/fetch";
+import { testPostmanExample, debugSaveEndpoint } from "../services/LocationService";
 
 const LocationScreen = ({ navigation }) => {
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isTracking, setIsTracking] = useState(true); // Assume tracking is already started
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [pingResult, setPingResult] = useState(null); // Store ping test result
+  const [pingResult, setPingResult] = useState(null); // For storing test results
 
-  //  ___FUNCTION___TEST PING ENDPOINT
+  // Test ping endpoint
   async function testPingEndpoint() {
     try {
       const response = await fetch("http://54.210.56.10/ping");
@@ -30,13 +31,52 @@ const LocationScreen = ({ navigation }) => {
       return { error: error.message };
     }
   }
-  //   ___FUNCTION___HANDLE PING TEST
+
+  // Handle ping test
   const handlePingTest = async () => {
     const result = await testPingEndpoint();
     if (result.error) {
       Alert.alert("Ping Failed", result.error);
     } else {
       Alert.alert("Ping Successful", JSON.stringify(result));
+    }
+  };
+
+  // Add Postman test function
+  const handleTestPostman = async () => {
+    setPingResult("Testing Postman example...");
+    const result = await testPostmanExample();
+
+    if (result.success) {
+      setPingResult(`Postman example succeeded: ${JSON.stringify(result.response)}`);
+      Alert.alert("Success!", "The Postman example worked. Check logs for details.");
+    } else {
+      setPingResult(`Postman example failed: ${result.status || result.error}`);
+      Alert.alert("Failed", "The Postman example failed. Check logs for details.");
+    }
+  };
+
+  // Add full debug function
+  const handleFullDebug = async () => {
+    setPingResult("Running comprehensive debug...");
+    Alert.alert(
+      "Debug Started",
+      "This will try many combinations and may take some time. Check console logs for progress."
+    );
+
+    const result = await debugSaveEndpoint();
+
+    if (result.success) {
+      setPingResult(
+        `Found working solution: ${JSON.stringify({
+          url: result.url,
+          data: result.data,
+        })}`
+      );
+      Alert.alert("Success!", "Found a working combination. Check logs for details.");
+    } else {
+      setPingResult("No working combination found.");
+      Alert.alert("Debug Complete", "Could not find a working combination. Check logs for details.");
     }
   };
 
@@ -59,8 +99,7 @@ const LocationScreen = ({ navigation }) => {
     const displayInterval = setInterval(() => {
       Location.getCurrentPositionAsync({})
         .then((location) => {
-          // setLocation(location);
-          testPingEndpoint();
+          setLocation(location);
           setLastUpdated(new Date().toLocaleTimeString());
         })
         .catch((error) => {
@@ -87,36 +126,62 @@ const LocationScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Location Data</Text>
-      <Text style={styles.locationText}>{locationText}</Text>
-      {lastUpdated && <Text>Last updated: {lastUpdated}</Text>}
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.container}>
+        <Text style={styles.heading}>Location Data</Text>
+        <Text style={styles.locationText}>{locationText}</Text>
+        {lastUpdated && <Text>Last updated: {lastUpdated}</Text>}
 
-      {/* Ping Test Button and Result */}
-      <TouchableOpacity style={styles.testButton} onPress={handlePingTest}>
-        <Text style={styles.buttonText}>Test Ping Endpoint</Text>
-      </TouchableOpacity>
-      {pingResult && (
-        <View style={styles.resultContainer}>
-          <Text style={styles.resultText}>Ping Result:</Text>
-          <Text>{pingResult}</Text>
+        {/* Ping Test Button and Result */}
+        <TouchableOpacity style={styles.testButton} onPress={handlePingTest}>
+          <Text style={styles.buttonText}>Test Ping Endpoint</Text>
+        </TouchableOpacity>
+
+        {/* Debug section - THIS WAS MISSING FROM YOUR STRUCTURE */}
+        <View style={styles.debugContainer}>
+          <Text style={styles.sectionTitle}>Advanced Debugging</Text>
+          <TouchableOpacity style={styles.debugButton} onPress={handleTestPostman}>
+            <Text style={styles.buttonText}>Test Postman Example</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.fullDebugButton} onPress={handleFullDebug}>
+            <Text style={styles.buttonText}>Run Full Debug</Text>
+          </TouchableOpacity>
         </View>
-      )}
 
-      <TouchableOpacity style={styles.exitButton} onPress={handleBackToWelcome}>
-        <Text style={styles.exitButtonText}>Back to Welcome</Text>
-      </TouchableOpacity>
-    </View>
+        {pingResult && (
+          <View style={styles.resultContainer}>
+            <Text style={styles.resultText}>Test Result:</Text>
+            <Text>{pingResult}</Text>
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.exitButton} onPress={handleBackToWelcome}>
+          <Text style={styles.exitButtonText}>Back to Welcome</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
+  scrollContainer: {
+    flexGrow: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
+  },
+  debugContainer: {
+    width: "100%",
+    alignItems: "center",
+    marginVertical: 20,
+    padding: 10,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
   },
   heading: {
     fontSize: 24,
@@ -135,10 +200,32 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginVertical: 10,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  debugButton: {
+    backgroundColor: "#ff9800",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginVertical: 5,
+    width: "100%",
+  },
+  fullDebugButton: {
+    backgroundColor: "#f44336",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginVertical: 5,
+    width: "100%",
+  },
   buttonText: {
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+    textAlign: "center",
   },
   resultContainer: {
     marginVertical: 10,
