@@ -1,9 +1,10 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View, Button } from "react-native";
+import { StyleSheet, Text, View, Button, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import * as Location from "expo-location";
 
 export default function App() {
+  const [appStarted, setAppStarted] = useState(false); // New state to track if app has been started
   const [location, setLocation] = useState(null); //location data
   const [errorMsg, setErrorMsg] = useState(null); //error message
   const [isTracking, setIsTracking] = useState(false); //tracking status
@@ -80,19 +81,42 @@ export default function App() {
 
   useEffect(() => {
     // getLocation();
-    startLocationTracking();
+    if (appStarted) {
+      startLocationTracking();
+    }
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, []); //get location when component mounts
+  }, [appStarted]); //get location when component mounts
+
+  // Function to handle starting the app
+  function handleStartApp() {
+    setAppStarted(true);
+  }
+  function handleExitApp() {
+    setAppStarted(false);
+  }
+
   let locationText = "Waiting for location...";
 
   if (errorMsg) {
     locationText = errorMsg;
   } else if (location) {
     locationText = `Username: test01\n Latitude: ${location.coords.latitude}\nLongitude: ${location.coords.longitude}\n`;
+  }
+  if (!appStarted) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.heading}>Social Proximity</Text>
+        <Text style={styles.welcomeText}>Welcome to Social Proximity</Text>
+        <TouchableOpacity style={styles.startButton} onPress={handleStartApp}>
+          <Text style={styles.startButtonText}>Start App</Text>
+        </TouchableOpacity>
+        <StatusBar style={styles.statusBar} />
+      </View>
+    );
   }
 
   return (
@@ -106,7 +130,9 @@ export default function App() {
       ) : (
         <Button title="Stop Tracking" onPress={stopLocationTracking} />
       )}
-
+      <TouchableOpacity style={styles.startButton} onPress={handleExitApp}>
+        <Text style={styles.startButtonText}>Exit the App</Text>
+      </TouchableOpacity>
       <StatusBar style={styles.statusBar} />
     </View>
   );
@@ -125,12 +151,26 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
   },
+  welcomeText: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 30,
+    paddingHorizontal: 20,
+  },
   locationText: {
     fontSize: 16,
     marginBottom: 20,
     textAlign: "center",
   },
-  statusBar: {
-    backgroundColor: "#000",
+  startButton: {
+    backgroundColor: "#4CAF50",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+  },
+  startButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });
