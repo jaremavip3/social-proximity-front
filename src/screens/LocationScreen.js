@@ -6,6 +6,8 @@ import { SvgXml } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import socketService from "../services/WebSocketService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native";
+import { getClosestUsers } from "../services/MatchService";
 
 const sandTimer = `<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" xml:space="preserve" fill="#000000"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <rect x="255.467" y="248.533" style="fill:#F5A623;" width="1.067" height="16"></rect> <path style="fill:#7f7ebe;" d="M372.267,194.133H139.733c-8.836,0-16-7.164-16-16v-108.8c0-8.836,7.164-16,16-16h232.533 c8.836,0,16,7.164,16,16v108.8C388.267,186.97,381.103,194.133,372.267,194.133z"></path> <path style="fill:#0052CC;" d="M372.267,53.333H256v140.8h116.267c8.836,0,16-7.164,16-16v-108.8 C388.267,60.497,381.103,53.333,372.267,53.333z"></path> <path style="fill:#A7A9AC;" d="M393.6,85.333H118.4c-8.836,0-16-7.164-16-16V16c0-8.836,7.164-16,16-16h275.2 c8.836,0,16,7.164,16,16v53.333C409.6,78.17,402.436,85.333,393.6,85.333z"></path> <path style="fill:#F5A623;" d="M123.733,162.133c0,15.069-2.09,25.287,8.507,30.905l116.267,61.632 c2.343,1.243,4.918,1.863,7.493,1.863c2.575,0,5.15-0.621,7.493-1.863l116.267-61.632c5.233-2.774,8.507-8.212,8.507-14.137v-0.768 v-16C381.102,162.133,130.495,162.133,123.733,162.133z"></path> <path style="fill:#FF9900;" d="M256,162.133v94.4c2.575,0,5.15-0.621,7.493-1.863l116.267-61.632 c5.233-2.774,8.507-8.212,8.507-14.137v-0.768v-16C384.687,162.133,320.342,162.133,256,162.133z"></path> <path style="fill:#7f7ebe;" d="M372.267,391.467H139.733c-8.836,0-16-7.164-16-16v-41.301c0-5.924,3.273-11.362,8.507-14.137 l116.267-61.632c4.688-2.485,10.3-2.485,14.988,0l116.267,61.632c5.233,2.774,8.507,8.212,8.507,14.137v41.301 C388.267,384.304,381.103,391.467,372.267,391.467z"></path> <path style="fill:#0052CC;" d="M379.761,320.03l-116.267-61.632c-2.343-1.243-4.918-1.865-7.493-1.865v134.933h116.267 c8.836,0,16-7.164,16-16v-41.301C388.267,328.242,384.994,322.803,379.761,320.03z"></path> <path style="fill:#F5A623;" d="M372.267,459.733H139.733c-8.836,0-16-7.164-16-16v-84.267h264.533v84.267 C388.267,452.571,381.104,459.733,372.267,459.733z"></path> <path style="fill:#FF9900;" d="M256,359.467v100.267h116.267c8.836,0,16-7.164,16-16v-84.267H256z"></path> <path style="fill:#A7A9AC;" d="M393.6,512H118.4c-8.836,0-16-7.164-16-16v-53.333c0-8.836,7.164-16,16-16h275.2 c8.836,0,16,7.164,16,16V496C409.6,504.837,402.436,512,393.6,512z"></path> <g> <path style="fill:#808285;" d="M393.6,0H256v85.333h137.6c8.836,0,16-7.164,16-16V16C409.6,7.164,402.436,0,393.6,0z"></path> <path style="fill:#808285;" d="M393.6,426.667H256V512h137.6c8.836,0,16-7.164,16-16v-53.333 C409.6,433.83,402.436,426.667,393.6,426.667z"></path> </g> </g></svg>`;
 
@@ -22,17 +24,63 @@ const LocationScreen = ({ navigation, route }) => {
   const [username, setUsername] = useState("Anonymous");
   const [nearbyUsers, setNearbyUsers] = useState([]);
   const [realtimeMessages, setRealtimeMessages] = useState([]);
+  const [matchFound, setMatchFound] = useState(false);
+  const isFocused = useIsFocused();
 
   // Animation related values
   const spinValue = useRef(new Animated.Value(0)).current;
   const fadeValue = useRef(new Animated.Value(1)).current;
   const wsSignalOpacity = useRef(new Animated.Value(wsStatus.connected ? 1 : 0.3)).current;
 
+  // Check if matches are already available when screen comes into focus
+  useEffect(() => {
+    if (isFocused) {
+      // Check if matches are already available in WebSocketService
+      if (socketService.hasMatches()) {
+        setMatchFound(true);
+      }
+    }
+  }, [isFocused]);
+
+  const checkForMatches = async () => {
+    // First check if matches already exist in the WebSocketService
+    if (socketService.hasMatches()) {
+      setMatchFound(true);
+      return;
+    }
+
+    // If no matches found, try to fetch them directly
+    try {
+      if (username) {
+        // Send request for matches via WebSocket
+        if (socketService.isConnected) {
+          socketService.sendMessage("request_matches", {
+            username: username,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Also directly call the API (same as BestMatchScreen does)
+        const data = await getClosestUsers(username);
+        if (data.rankings && data.rankings.length > 0) {
+          // Store matches in the WebSocketService
+          socketService.matchesFound = true;
+          socketService.matchData = data.rankings;
+          setMatchFound(true);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking for matches:", error);
+    }
+  };
+
   useEffect(() => {
     // Load username
     AsyncStorage.getItem("username").then((savedUsername) => {
       if (savedUsername) {
         setUsername(savedUsername);
+        // Call our new function to check for matches once username is loaded
+        checkForMatches();
       }
     });
 
@@ -66,6 +114,15 @@ const LocationScreen = ({ navigation, route }) => {
         if (message.payload.users && message.payload.users.length > 0) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
+      }
+
+      // Check for match-related messages
+      if (
+        message.type === "match_update" ||
+        (message.type === "analysis_done" && message.data && message.data.text) ||
+        message.type === "match_found"
+      ) {
+        setMatchFound(true);
       }
     });
 
@@ -227,6 +284,38 @@ const LocationScreen = ({ navigation, route }) => {
     Alert.alert("Finding Nearby Users", "Looking for users in your proximity...");
   };
 
+  // Handle view matches button
+  const handleViewMatches = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate("BestMatch");
+  };
+
+  // Handle request matches
+  const handleRequestMatches = () => {
+    if (!wsStatus.connected) {
+      Alert.alert(
+        "Connection Required",
+        "Real-time connection is required to find matches. Would you like to connect now?",
+        [
+          { text: "No", style: "cancel" },
+          { text: "Yes", onPress: handleReconnectWebSocket },
+        ]
+      );
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    socketService.sendMessage("request_matches", {
+      username: username,
+      timestamp: new Date().toISOString(),
+    });
+
+    Alert.alert("Finding Matches", "Looking for people with similar interests. This may take a moment...", [
+      { text: "OK" },
+    ]);
+  };
+
   let locationText = "Waiting for location...";
 
   if (errorMsg) {
@@ -262,6 +351,13 @@ const LocationScreen = ({ navigation, route }) => {
             <SvgXml xml={sandTimer} width={100} height={100} />
           </Animated.View>
         </View>
+
+        {/* Match Found Indicator */}
+        {matchFound && (
+          <View style={styles.matchFoundContainer}>
+            <Text style={styles.matchFoundText}>✨ Matches Found! ✨</Text>
+          </View>
+        )}
 
         {/* Nearby Users Section */}
         {nearbyUsers.length > 0 && (
@@ -311,6 +407,26 @@ const LocationScreen = ({ navigation, route }) => {
               <Text style={styles.actionButtonText}>{wsStatus.connected ? "Reconnect" : "Connect Now"}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Request Matches Button */}
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              styles.requestMatchesButton,
+              !wsStatus.connected && styles.actionButtonDisabled,
+            ]}
+            onPress={handleRequestMatches}
+            disabled={!wsStatus.connected}
+          >
+            <Text style={styles.actionButtonText}>Request Matches</Text>
+          </TouchableOpacity>
+
+          {/* View Matches Button (only shows when matches are found) */}
+          {matchFound && (
+            <TouchableOpacity style={[styles.actionButton, styles.matchFoundButton]} onPress={handleViewMatches}>
+              <Text style={styles.actionButtonText}>View Your Matches</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Ping Test Button and Result */}
           <TouchableOpacity style={styles.testButton} activeOpacity={0.5} onPress={handlePingTest}>
@@ -379,6 +495,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
     color: "#fff",
+  },
+  matchFoundContainer: {
+    backgroundColor: "rgba(76, 175, 80, 0.2)",
+    borderWidth: 1,
+    borderColor: "#4CAF50",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    marginVertical: 15,
+    alignSelf: "center",
+  },
+  matchFoundText: {
+    color: "#4CAF50",
+    fontWeight: "bold",
+    fontSize: 16,
+    textAlign: "center",
   },
   sectionTitle: {
     fontSize: 18,
@@ -451,6 +583,16 @@ const styles = StyleSheet.create({
   },
   reconnectButtonConnected: {
     backgroundColor: "#4CAF50",
+  },
+  requestMatchesButton: {
+    backgroundColor: "#9C27B0", // Purple
+    marginBottom: 10,
+    width: "100%",
+  },
+  matchFoundButton: {
+    backgroundColor: "#4CAF50", // Green
+    marginBottom: 10,
+    width: "100%",
   },
   actionButtonText: {
     color: "white",

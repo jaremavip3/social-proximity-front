@@ -1,5 +1,8 @@
-import React from "react";
+// src/navigation/AppNavigator.js
+import React, { useRef, useEffect } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { NavigationContainer } from "@react-navigation/native";
+import socketService from "../services/WebSocketService";
 
 // Import screens
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -11,20 +14,32 @@ import BestMatchScreen from "../screens/BestMatchScreen";
 const Stack = createNativeStackNavigator();
 
 // This is a simple navigator that passes the startLocationTracking function to the welcome screen
-const AppNavigator = ({ startLocationTracking }) => {
+const AppNavigator = ({ startLocationTracking, ...appProps }) => {
+  // Create a navigation reference
+  const navigationRef = useRef(null);
+
+  // Set the navigation reference in the WebSocket service
+  useEffect(() => {
+    if (navigationRef.current) {
+      socketService.setNavigationRef(navigationRef.current);
+    }
+  }, [navigationRef]);
+
   return (
-    <Stack.Navigator
-      initialRouteName="Welcome"
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name="Welcome" component={WelcomeScreen} initialParams={{ startLocationTracking }} />
-      <Stack.Screen name="Profile" component={ProfileFormScreen} />
-      <Stack.Screen name="Location" component={LocationScreen} />
-      <Stack.Screen name="CommonData" component={CommonDataScreen} />
-      <Stack.Screen name="BestMatch" component={BestMatchScreen} />
-    </Stack.Navigator>
+    <NavigationContainer ref={navigationRef}>
+      <Stack.Navigator
+        initialRouteName="Welcome"
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name="Welcome" component={WelcomeScreen} initialParams={{ startLocationTracking, ...appProps }} />
+        <Stack.Screen name="Profile" component={ProfileFormScreen} initialParams={appProps} />
+        <Stack.Screen name="Location" component={LocationScreen} initialParams={appProps} />
+        <Stack.Screen name="CommonData" component={CommonDataScreen} initialParams={appProps} />
+        <Stack.Screen name="BestMatch" component={BestMatchScreen} initialParams={appProps} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 };
 
