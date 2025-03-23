@@ -138,10 +138,8 @@ export default function CommonDataScreen({ navigation, route }) {
       });
     }
 
-    Alert.alert("Connection Confirmed", `You've confirmed a connection with ${userData.username || userData.name}!`, [
-      { text: "View Next Match", onPress: handleNextMatch },
-      { text: "Go to Welcome", onPress: () => navigation.navigate("Welcome") },
-    ]);
+    // Відразу перейти на екран з написом "HI!"
+    navigation.navigate("ConnectionConfirmed");
   };
 
   // Handle declining connection with this user

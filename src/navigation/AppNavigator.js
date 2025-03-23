@@ -10,6 +10,7 @@ import LocationScreen from "../screens/LocationScreen";
 import ProfileFormScreen from "../screens/ProfileFormScreen";
 import CommonDataScreen from "../screens/CommonDataScreen";
 import BestMatchScreen from "../screens/BestMatchScreen";
+import ConnectionConfirmedScreen from "../screens/ConnectionConfirmedScreen"; // Додайте цей імпорт
 
 const Stack = createNativeStackNavigator();
 
@@ -38,6 +39,7 @@ const AppNavigator = ({ startLocationTracking, ...appProps }) => {
         <Stack.Screen name="Location" component={LocationScreen} initialParams={appProps} />
         <Stack.Screen name="CommonData" component={CommonDataScreen} initialParams={appProps} />
         <Stack.Screen name="BestMatch" component={BestMatchScreen} initialParams={appProps} />
+        <Stack.Screen name="ConnectionConfirmed" component={ConnectionConfirmedScreen} initialParams={appProps} />
       </Stack.Navigator>
     </NavigationContainer>
   );
