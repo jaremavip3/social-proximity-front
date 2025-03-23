@@ -1,8 +1,8 @@
-import React from "react";
-import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, Text, View, TouchableOpacity, Alert } from "react-native";
 import { SvgXml } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, { useAnimatedStyle, useAnimatedSensor, SensorType, withSpring } from "react-native-reanimated";
 
 const compassSvg = `
@@ -13,6 +13,63 @@ const WelcomeScreen = ({ navigation, route }) => {
   // Get the startLocationTracking function from route params
   const { startLocationTracking } = route.params;
 
+  // Add state for username
+  const [username, setUsername] = useState(null);
+
+  // Load username from AsyncStorage when component mounts
+  useEffect(() => {
+    const loadUsername = async () => {
+      try {
+        const savedUsername = await AsyncStorage.getItem("username");
+        if (savedUsername) {
+          setUsername(savedUsername);
+        }
+      } catch (error) {
+        console.error("Error loading username:", error);
+      }
+    };
+
+    loadUsername();
+  }, []);
+
+  // Function to remove username
+  const handleRemoveUsername = () => {
+    Alert.alert("Remove Profile", "Are you sure you want to remove your profile data? This cannot be undone.", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            // Clear username from AsyncStorage
+            await AsyncStorage.removeItem("username");
+
+            // Also clear related data
+            await AsyncStorage.removeItem("currentUser");
+
+            // Disconnect WebSocket if imported
+            if (global.socketService) {
+              global.socketService.disconnect();
+            }
+
+            // Update state to reflect change
+            setUsername(null);
+
+            // Notify user
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert("Profile Removed", "Your profile has been removed successfully.");
+          } catch (error) {
+            console.error("Error removing username:", error);
+            Alert.alert("Error", "Failed to remove profile data.");
+          }
+        },
+      },
+    ]);
+  };
+
   const handleStartApp = () => {
     // Start location tracking
     if (startLocationTracking) {
@@ -21,10 +78,11 @@ const WelcomeScreen = ({ navigation, route }) => {
     // Navigate to location screen
     navigation.navigate("Location");
   };
+
   const handleGoToProfile = () => {
     navigation.navigate("Profile");
   };
-  // TO BE REMOVED______________!!!_!__!_!__!__!_!__!_!__!___!_!_!
+
   const handleGoToCOMMOND_DATA_SCREEN = () => {
     navigation.navigate("CommonData");
   };
@@ -47,7 +105,18 @@ const WelcomeScreen = ({ navigation, route }) => {
         <SvgXml xml={compassSvg} width="50%" height="50%" />
       </Animated.View>
       <Text style={styles.heading}>Social Proximity</Text>
-      <Text style={styles.welcomeText}>Welcome to Social Proximity</Text>
+
+      {/* Conditional welcome message based on username */}
+      {username ? (
+        <View style={styles.usernameContainer}>
+          <Text style={styles.welcomeText}>
+            Welcome back, <Text style={styles.usernameText}>{username}</Text>!
+          </Text>
+        </View>
+      ) : (
+        <Text style={styles.welcomeText}>Welcome to Social Proximity</Text>
+      )}
+
       <View style={styles.optionsContainer}>
         <Text style={styles.choiceText}>What would you like to do?</Text>
 
@@ -63,7 +132,7 @@ const WelcomeScreen = ({ navigation, route }) => {
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.button, styles.profileButton]} activeOpacity={0.5} onPress={handleGoToProfile}>
-          <Text style={styles.buttonText}>Create Your Profile</Text>
+          <Text style={styles.buttonText}>{username ? "Update Your Profile" : "Create Your Profile"}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -73,6 +142,17 @@ const WelcomeScreen = ({ navigation, route }) => {
         >
           <Text style={styles.buttonText}>TEST COMMOND_DATA</Text>
         </TouchableOpacity>
+
+        {/* Only show remove button if username exists */}
+        {username && (
+          <TouchableOpacity
+            style={[styles.button, styles.removeButton]}
+            activeOpacity={0.5}
+            onPress={handleRemoveUsername}
+          >
+            <Text style={styles.buttonText}>Remove Profile Data</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -99,6 +179,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     color: "#FFF",
   },
+  usernameContainer: {
+    marginBottom: 40,
+  },
+  usernameText: {
+    color: "#F5A623",
+    fontWeight: "bold",
+    fontSize: 18,
+  },
   optionsContainer: {
     width: "100%",
     alignItems: "center",
@@ -120,14 +208,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5A623", // Yellow color
   },
   profileButton: {
-    backgroundColor: "#0052CC",
+    backgroundColor: "#0052CC", // Blue color
+  },
+  removeButton: {
+    backgroundColor: "#D32F2F", // Red color for destructive action
+    marginTop: 10,
   },
   buttonText: {
     color: "white",
     fontSize: 18,
     fontWeight: "bold",
   },
-
   imageContainer: {
     height: "40%",
     width: "100%",
