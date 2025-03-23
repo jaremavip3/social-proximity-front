@@ -33,8 +33,8 @@ const WelcomeScreen = ({ navigation, route }) => {
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
-        { translateX: withSpring(gravity.sensor.value.x * 5) },
-        { translateY: withSpring(gravity.sensor.value.y * -5) },
+        { translateX: withSpring(gravity.sensor.value.x * 15) },
+        { translateY: withSpring(gravity.sensor.value.y * -15) },
       ],
     };
   });

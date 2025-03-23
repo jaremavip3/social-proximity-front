@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import {
   StyleSheet,
@@ -36,7 +36,21 @@ export default function CommonDataScreen({ navigation }) {
   };
   //   PROGRESS CIRCLE COMPONENT
   function CircularProgress({ percentage }) {
-    const displayPercentage = Math.round(percentage);
+    const [displayPercentage, setDisplayPercentage] = useState(0);
+
+    const targetPercentage = Math.round(percentage);
+    useEffect(() => {
+      let counter = 0;
+      setDisplayPercentage(0);
+      const interval = setInterval(() => {
+        counter++;
+        setDisplayPercentage(counter);
+        if (counter === targetPercentage) {
+          clearInterval(interval);
+        }
+      }, 15);
+      return () => clearInterval(interval);
+    }, [percentage]);
 
     const size = 80;
     const strokeWidth = 3;
