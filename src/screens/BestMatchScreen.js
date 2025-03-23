@@ -4,38 +4,70 @@ import { SvgXml } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getClosestUsers } from "../services/MatchService";
+import socketService from "../services/WebSocketService";
 
 const arrowBack = `
     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.1" d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" fill="#ffffff"></path> <path d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" stroke="#ffffff" stroke-width="2"></path> <path d="M8 12L16 12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11 9L8.08704 11.913V11.913C8.03897 11.961 8.03897 12.039 8.08704 12.087V12.087L11 15" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
 `;
 
-export default function BestMatchScreen({ navigation }) {
-  const [isLoading, setIsLoading] = useState(false);
+export default function BestMatchScreen({ navigation, route }) {
+  const [isLoading, setIsLoading] = useState(true); // Start with loading state
   const [username, setUsername] = useState(null);
   const [rankings, setRankings] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [wsConnected, setWsConnected] = useState(false);
 
-  // Load username when component mounts
+  // Load username and fetch matches automatically when component mounts
   useEffect(() => {
-    const loadUsername = async () => {
+    const loadUserAndMatches = async () => {
       try {
         const savedUsername = await AsyncStorage.getItem("username");
         if (savedUsername) {
           setUsername(savedUsername);
+
+          // Set up WebSocket connection for realtime updates
+          if (!socketService.isConnected) {
+            await socketService.connect(savedUsername);
+          }
+
           // Fetch matches automatically when username is loaded
           fetchMatches(savedUsername);
         } else {
+          setIsLoading(false);
           Alert.alert("Profile Required", "You need to create a profile before finding matches.", [
             { text: "OK", onPress: () => navigation.navigate("Profile") },
           ]);
         }
       } catch (error) {
         console.error("Error loading username:", error);
+        setIsLoading(false);
       }
     };
 
-    loadUsername();
+    loadUserAndMatches();
+
+    // Set up WebSocket connection status listener
+    socketService.addConnectionListener(setWsConnected);
+
+    // Set up message listener for real-time match updates
+    socketService.addMessageListener(handleWebSocketMessage);
+
+    // Cleanup on unmount
+    return () => {
+      socketService.removeConnectionListener(setWsConnected);
+      socketService.removeMessageListener(handleWebSocketMessage);
+    };
   }, []);
+
+  // Handle WebSocket messages related to matches
+  const handleWebSocketMessage = (message) => {
+    if (message.type === "match_update" && message.payload && message.payload.rankings) {
+      // Update rankings if new match data is received
+      setRankings(message.payload.rankings);
+      setCurrentIndex(0); // Reset to first match
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
 
   // Function to fetch matches
   const fetchMatches = async (user) => {
@@ -48,6 +80,14 @@ export default function BestMatchScreen({ navigation }) {
         setRankings(data.rankings);
         setCurrentIndex(0);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Also send request for matches via WebSocket for realtime updates
+        if (socketService.isConnected) {
+          socketService.sendMessage("request_matches", {
+            username: user || username,
+            timestamp: new Date().toISOString(),
+          });
+        }
       } else {
         Alert.alert("No Matches", "No matches found at this time.");
       }
@@ -65,6 +105,16 @@ export default function BestMatchScreen({ navigation }) {
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+    // Send match accept notification via WebSocket
+    if (socketService.isConnected) {
+      socketService.sendMessage("match_response", {
+        from_username: username,
+        to_username: rankings[currentIndex].username || rankings[currentIndex].name,
+        response: "accept",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Navigate to the CommonData screen with the current match data
     navigation.navigate("CommonData", { userData: rankings[currentIndex] });
   };
@@ -74,6 +124,16 @@ export default function BestMatchScreen({ navigation }) {
     if (!rankings.length) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Send match reject notification via WebSocket
+    if (socketService.isConnected) {
+      socketService.sendMessage("match_response", {
+        from_username: username,
+        to_username: rankings[currentIndex].username || rankings[currentIndex].name,
+        response: "reject",
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     if (currentIndex < rankings.length - 1) {
       // Go to next match if available
@@ -94,6 +154,13 @@ export default function BestMatchScreen({ navigation }) {
   // Get current match
   const currentMatch = rankings.length > 0 ? rankings[currentIndex] : null;
 
+  // Connection status indicator
+  const renderConnectionStatus = () => (
+    <View style={[styles.connectionStatus, wsConnected ? styles.connected : styles.disconnected]}>
+      <Text style={styles.connectionText}>{wsConnected ? "Connected" : "Disconnected"}</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -102,6 +169,9 @@ export default function BestMatchScreen({ navigation }) {
           <SvgXml xml={arrowBack} width={35} height={35} />
         </TouchableOpacity>
       </View>
+
+      {/* Connection status indicator */}
+      {renderConnectionStatus()}
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -124,6 +194,13 @@ export default function BestMatchScreen({ navigation }) {
               <View style={styles.infoContainer}>
                 <Text style={styles.infoLabel}>Skills:</Text>
                 <Text style={styles.infoValue}>{currentMatch.skill_overlap}</Text>
+              </View>
+            )}
+
+            {currentMatch.complementary_strengths && (
+              <View style={styles.infoContainer}>
+                <Text style={styles.infoLabel}>Complementary Strengths:</Text>
+                <Text style={styles.infoValue}>{currentMatch.complementary_strengths}</Text>
               </View>
             )}
 
@@ -164,8 +241,6 @@ export default function BestMatchScreen({ navigation }) {
   );
 }
 
-// Keep your existing styles
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -177,7 +252,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 40,
-    marginBottom: 30,
+    marginBottom: 15,
   },
   title: {
     fontSize: 24,
@@ -188,6 +263,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#0052CC",
     padding: 5,
     borderRadius: 13,
+  },
+  connectionStatus: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignSelf: "center",
+    marginBottom: 15,
+  },
+  connected: {
+    backgroundColor: "rgba(76, 175, 80, 0.2)",
+    borderWidth: 1,
+    borderColor: "#4CAF50",
+  },
+  disconnected: {
+    backgroundColor: "rgba(244, 67, 54, 0.2)",
+    borderWidth: 1,
+    borderColor: "#F44336",
+  },
+  connectionText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
   },
   loadingContainer: {
     flex: 1,
@@ -296,5 +393,13 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  rankingInfo: {
+    marginTop: 10,
+    alignItems: "center",
+  },
+  rankingText: {
+    color: "#aaa",
+    fontSize: 14,
   },
 });
