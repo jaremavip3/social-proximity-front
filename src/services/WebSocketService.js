@@ -6,7 +6,7 @@ import * as Haptics from "expo-haptics";
 class WebSocketService {
   constructor() {
     this.socket = null;
-    this.serverUrl = "ws://54.210.56.10/ws"; // Replace with your WebSocket server URL
+    this.serverUrl = "ws://54.210.56.10:8080/ws"; // Змінено URL з портом
     this.isConnected = false;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
@@ -16,8 +16,8 @@ class WebSocketService {
     this.username = null;
     this.appState = AppState.currentState;
 
-    // Monitor app state to reconnect when app comes to foreground
-    AppState.addEventListener("change", this._handleAppStateChange);
+    // Зберігаємо підписку для можливості її видалення пізніше
+    this.appStateSubscription = AppState.addEventListener("change", this._handleAppStateChange);
   }
 
   _handleAppStateChange = (nextAppState) => {
@@ -237,7 +237,12 @@ class WebSocketService {
     this.disconnect();
     this.messageListeners = [];
     this.connectionListeners = [];
-    AppState.removeEventListener("change", this._handleAppStateChange);
+
+    // Правильно видаляємо підписку
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+    }
+
     return true;
   }
 }
