@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   startButton: {
-    backgroundColor: "#F5A623",
+    backgroundColor: "#F5A623", // Yellow color
   },
   profileButton: {
     backgroundColor: "#0052CC",

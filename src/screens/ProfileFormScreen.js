@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+
 import {
   StyleSheet,
   View,
@@ -8,6 +9,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
   Alert,
 } from "react-native";
 import { SvgXml } from "react-native-svg";
@@ -113,11 +116,12 @@ export default function ProfileFormScreen({ navigation }) {
       <TextInput
         style={[styles.input, multiline && styles.multilineInput, errors[field] ? styles.inputError : null]}
         placeholder={placeholder}
-        placeholderTextColor="#999"
+        placeholderTextColor="#FFFFFFCC"
         value={formData[field]}
         onChangeText={(text) => handleChange(field, text)}
         keyboardType={keyboardType}
         multiline={multiline}
+        color="#fff"
       />
       {errors[field] ? <Text style={styles.errorText}>{errors[field]}</Text> : null}
     </View>
@@ -127,51 +131,62 @@ export default function ProfileFormScreen({ navigation }) {
   };
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-      <ScrollView>
-        <View style={styles.formContainer}>
-          <View style={styles.headerContainer}>
-            <Text style={styles.title}>Create Your Profile</Text>
-            <TouchableOpacity style={styles.arrowBack} activeOpacity={0.5} onPress={handleGoToWelcome}>
-              <SvgXml xml={arrowBack} width={35} height={35} />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView>
+          <View style={styles.formContainer}>
+            <View style={styles.headerContainer}>
+              <Text style={styles.title}>Create Your Profile</Text>
+              <TouchableOpacity style={styles.arrowBack} activeOpacity={0.5} onPress={handleGoToWelcome}>
+                <SvgXml xml={arrowBack} width={35} height={35} />
+              </TouchableOpacity>
+            </View>
+            {renderField("Username (public)", "username", "Enter your unsername")}
+            {renderField("Name", "name", "Enter your name")}
+            {renderField("Email", "email", "Enter your email", "email-address")}
+            {renderField(
+              "Languages",
+              "language",
+              "Enter languages you speak (e.g., English, Spanish)",
+              "default",
+              true
+            )}
+            {renderField("Age", "age", "Enter your age", "numeric")}
+            {renderField("Degree", "degree", "Enter your degree")}
+            {renderField("University", "university", "Enter your university")}
+            {renderField("Skills", "skills", "Enter your skills (e.g., React, JavaScript)", "default", true)}
+            {renderField("Certification", "certification", "Enter your certifications")}
+            {renderField("Project", "project", "Enter your projects", "default", true)}
+            {renderField("Company Interests", "companyInterests", "Companies you are interested in")}
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Hobbies (separate with commas)</Text>
+              <TextInput
+                style={[styles.input, styles.multilineInput]}
+                placeholder="Reading, Swimming, Hiking"
+                placeholderTextColor="#FFFFFFCC"
+                value={formData.hobbies}
+                color="#fff"
+                onChangeText={(text) => handleChange("hobbies", text)}
+                multiline
+              />
+            </View>
+
+            {renderField("Job Title", "jobTitle", "Enter your job title")}
+
+            <TouchableOpacity
+              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              activeOpacity={0.5}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.submitButtonText}>{isSubmitting ? "Submitting..." : "Submit Profile"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.backButton} activeOpacity={0.5} onPress={handleGoToWelcome}>
+              <Text style={styles.submitButtonText}>Go Back</Text>
             </TouchableOpacity>
           </View>
-
-          {renderField("Name", "name", "Enter your name")}
-          {renderField("Age", "age", "Enter your age", "numeric")}
-          {renderField("Degree", "degree", "Enter your degree")}
-          {renderField("University", "university", "Enter your university")}
-          {renderField("Skills", "skills", "Enter your skills (e.g., React, JavaScript)", "default", true)}
-          {renderField("Certification", "certification", "Enter your certifications")}
-          {renderField("Project", "project", "Enter your projects", "default", true)}
-          {renderField("Company Interests", "companyInterests", "Companies you are interested in")}
-          {renderField("Email", "email", "Enter your email", "email-address")}
-
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Hobbies (separate with commas)</Text>
-            <TextInput
-              style={[styles.input, styles.multilineInput]}
-              placeholder="Reading, Swimming, Hiking"
-              value={formData.hobbies}
-              onChangeText={(text) => handleChange("hobbies", text)}
-              multiline
-            />
-          </View>
-
-          {renderField("Job Title", "jobTitle", "Enter your job title")}
-
-          <TouchableOpacity
-            style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            activeOpacity={0.5}
-            disabled={isSubmitting}
-          >
-            <Text style={styles.submitButtonText}>{isSubmitting ? "Submitting..." : "Submit Profile"}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.submitButton} activeOpacity={0.5} onPress={handleGoToWelcome}>
-            <Text style={styles.submitButtonText}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -202,7 +217,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-
     color: "#fff",
   },
   fieldContainer: {
@@ -215,12 +229,20 @@ const styles = StyleSheet.create({
     color: "#e6e6e6",
   },
   input: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 10,
-    borderRadius: 5,
+    // backgroundColor: "#fff",
+    // borderWidth: 2,
+    // borderStyle: "solid",
+    // borderColor: "#4169E1",
+    // padding: 10,
+    // borderRadius: 10,
     fontSize: 16,
+    backgroundColor: "#161B2B", // Dark blue background for cards
+    borderRadius: 10,
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderColor: "#4169E1",
+    padding: 15,
+    // marginBottom: 15,
   },
   multilineInput: {
     minHeight: 80,
@@ -235,13 +257,21 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   submitButton: {
+    backgroundColor: "#F5A623",
+    paddingVertical: 15,
+    borderRadius: 5,
+    marginTop: 20,
+    alignItems: "center",
+    borderRadius: 15,
+  }, //F5A623
+  backButton: {
     backgroundColor: "#0052CC",
     paddingVertical: 15,
     borderRadius: 5,
     marginTop: 20,
     alignItems: "center",
     borderRadius: 15,
-  },
+  }, //F5A623
 
   submitButtonDisabled: {
     backgroundColor: "#a5d6a7",
