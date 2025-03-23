@@ -1,10 +1,12 @@
 import * as Location from "expo-location";
 import { fetch } from "expo/fetch";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export async function sendLocationToServer(location) {
+  const username = await AsyncStorage.getItem("username");
   // Using string format of coordinates as shown in successful debug output
   const data = {
-    username: "test01",
+    username: username,
     latitude: String(location.coords.latitude),
     longitude: String(location.coords.longitude),
   };
