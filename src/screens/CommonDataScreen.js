@@ -1,39 +1,41 @@
 import React, { useEffect, useState } from "react";
 
-import {
-  StyleSheet,
-  View,
-  Text,
-  TextInput,
-  ScrollView,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-} from "react-native";
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { SvgXml } from "react-native-svg";
 
 const arrowBack = `
     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.1" d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" fill="#ffffff"></path> <path d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" stroke="#ffffff" stroke-width="2"></path> <path d="M8 12L16 12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11 9L8.08704 11.913V11.913C8.03897 11.961 8.03897 12.039 8.08704 12.087V12.087L11 15" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
     `;
 
-export default function CommonDataScreen({ navigation }) {
+export default function CommonDataScreen({ navigation, route }) {
+  // Get userData from route params if available
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    // If userData is passed via navigation, use it
+    if (route.params && route.params.userData) {
+      setUserData(route.params.userData);
+    } else {
+      // Use default data if nothing is passed
+      setUserData({
+        name: "user3",
+        ranking_position: 1,
+        skill_overlap: "High overlap in Java, SQL, and React skills.",
+        complementary_strengths:
+          "user3 brings additional expertise in Next.js, Supabase, and REST APIs, enhancing full-stack capabilities.",
+        networking_potential:
+          "Strong potential for collaboration on AI, backend systems, and ML pipelines due to shared interests and complementary skills.",
+        suggested_collaboration: "Joint projects in full-stack development with AI integration.",
+        reason: "High skill overlap and complementary strengths in full-stack development and AI-related interests.",
+        match_score: 0.9,
+      });
+    }
+  }, [route.params]);
+
   const handleGoToWelcome = () => {
     navigation.navigate("Welcome");
   };
 
-  const userData = {
-    name: "user3",
-    ranking_position: 1,
-    skill_overlap: "High overlap in Java, SQL, and React skills.",
-    complementary_strengths:
-      "user3 brings additional expertise in Next.js, Supabase, and REST APIs, enhancing full-stack capabilities.",
-    networking_potential:
-      "Strong potential for collaboration on AI, backend systems, and ML pipelines due to shared interests and complementary skills.",
-    suggested_collaboration: "Joint projects in full-stack development with AI integration.",
-    reason: "High skill overlap and complementary strengths in full-stack development and AI-related interests.",
-    match_score: 0.9,
-  };
   //   PROGRESS CIRCLE COMPONENT
   function CircularProgress({ percentage }) {
     const [displayPercentage, setDisplayPercentage] = useState(0);
@@ -106,10 +108,20 @@ export default function CommonDataScreen({ navigation }) {
       </View>
     );
   }
+
+  // If userData isn't loaded yet, show a loading state
+  if (!userData) {
+    return (
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <Text style={styles.title}>Loading user data...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>UserName</Text>
+        <Text style={styles.title}>User Profile</Text>
         <TouchableOpacity style={styles.arrowBack} activeOpacity={0.5} onPress={handleGoToWelcome}>
           <SvgXml xml={arrowBack} width={35} height={35} />
         </TouchableOpacity>
@@ -117,11 +129,13 @@ export default function CommonDataScreen({ navigation }) {
 
       <View style={styles.profileHeader}>
         <View style={styles.userInfo}>
-          <Text style={styles.username}>{userData.name}</Text>
-          <View style={styles.rankContainer}>
-            <Text style={styles.rankIcon}>🏆</Text>
-            <Text style={styles.rankText}>Rank #{userData.ranking_position}</Text>
-          </View>
+          <Text style={styles.username}>{userData.name || userData.username}</Text>
+          {userData.ranking_position && (
+            <View style={styles.rankContainer}>
+              <Text style={styles.rankIcon}>🏆</Text>
+              <Text style={styles.rankText}>Rank #{userData.ranking_position}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.scoreContainer}>
@@ -131,15 +145,23 @@ export default function CommonDataScreen({ navigation }) {
       </View>
 
       <ScrollView style={styles.contentContainer}>
-        <ScrollView style={styles.contentContainer}>
-          <InfoCard icon="👥" title="Skill Overlap" description={userData.skill_overlap} />
+        {userData.skill_overlap && <InfoCard icon="👥" title="Skill Overlap" description={userData.skill_overlap} />}
 
+        {userData.complementary_strengths && (
           <InfoCard icon="⚡" title="Complementary Strengths" description={userData.complementary_strengths} />
+        )}
 
+        {userData.networking_potential && (
           <InfoCard icon="🔗" title="Networking Potential" description={userData.networking_potential} />
+        )}
 
+        {userData.suggested_collaboration && (
           <InfoCard icon="💡" title="Suggested Collaboration" description={userData.suggested_collaboration} />
-        </ScrollView>
+        )}
+
+        {userData.reason && !userData.suggested_collaboration && (
+          <InfoCard icon="💡" title="Why You Matched" description={userData.reason} />
+        )}
       </ScrollView>
     </View>
   );
