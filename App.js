@@ -1,36 +1,70 @@
+// Modified App.js with WebSocket integration
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View, Button, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import * as Location from "expo-location";
 import { NavigationContainer } from "@react-navigation/native";
 import AppNavigator from "./src/navigation/AppNavigator";
-import { setupNotificationListeners, removeNotificationListeners } from "./src/services/NotificationService";
 import { sendLocationToServer } from "./src/services/LocationService";
+import socketService from "./src/services/WebSocketService"; // Import WebSocket service
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function App() {
-  useEffect(() => {
-    // Set up notification listeners when app starts
-    const listeners = setupNotificationListeners(
-      (notification) => {
-        // Handle received notification
-        console.log("Got notification while app was open:", notification);
-      },
-      (response) => {
-        // Handle notification tap
-        console.log("User tapped notification:", response);
-        // You can navigate to specific screens based on notification
-      }
-    );
-
-    // Clean up listeners on unmount
-    return () => removeNotificationListeners(listeners);
-  }, []);
-
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isTracking, setIsTracking] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [wsConnected, setWsConnected] = useState(false);
   const intervalRef = useRef(null);
+  const [username, setUsername] = useState(null);
+
+  // Get current username on load
+  useEffect(() => {
+    const loadUsername = async () => {
+      try {
+        const savedUsername = await AsyncStorage.getItem("username");
+        if (savedUsername) {
+          setUsername(savedUsername);
+        }
+      } catch (error) {
+        console.error("Error loading username:", error);
+      }
+    };
+
+    loadUsername();
+  }, []);
+
+  // Set up WebSocket connection when username is available
+  useEffect(() => {
+    if (username) {
+      // Initialize WebSocket connection with username
+      socketService.connect(username);
+
+      // Set up connection status listener
+      socketService.addConnectionListener(setWsConnected);
+
+      // Set up message listener
+      socketService.addMessageListener((message) => {
+        if (message.type === "proximity_alert") {
+          Alert.alert("Proximity Alert", message.payload.message, [
+            { text: "OK", onPress: () => console.log("OK Pressed") },
+          ]);
+        } else if (message.type === "notification") {
+          Alert.alert(message.payload.title || "Notification", message.payload.body || message.payload.message, [
+            { text: "OK", onPress: () => console.log("OK Pressed") },
+          ]);
+        }
+      });
+
+      console.log(`WebSocket initialized for user: ${username}`);
+    }
+
+    // Clean up WebSocket on unmount
+    return () => {
+      socketService.removeConnectionListener(setWsConnected);
+      socketService.cleanup();
+    };
+  }, [username]);
 
   // GET CURRENT LOCATION AND SEND TO SERVER
   async function getLocation() {
@@ -44,15 +78,26 @@ export default function App() {
       let location = await Location.getCurrentPositionAsync({});
       setLocation(location);
       setLastUpdated(new Date().toLocaleTimeString());
-      // console.log("Location data update:", JSON.stringify(location, null, 2));
+
+      // Send to server via HTTP as before
       await sendLocationToServer(location);
+
+      // Also send via WebSocket if connected
+      if (wsConnected && username) {
+        socketService.sendMessage("location_update", {
+          username: username,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          timestamp: new Date().toISOString(),
+        });
+      }
     } catch (error) {
       console.log("Error retrieving location: ", error);
       setErrorMsg(`Error retrieving location: ${error.message}`);
     }
   }
 
-  //START LOCATION TRACKING
+  // START LOCATION TRACKING
   function startLocationTracking() {
     if (!isTracking) {
       getLocation();
@@ -72,6 +117,7 @@ export default function App() {
     }
   }
 
+  // Clean up interval on unmount
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
@@ -80,8 +126,26 @@ export default function App() {
     };
   }, []);
 
-  // Pass location data and functions to the screens
-  const locationProps = {
+  // Update username when changed
+  const updateUsername = async (newUsername) => {
+    try {
+      if (newUsername && newUsername !== username) {
+        setUsername(newUsername);
+        await AsyncStorage.setItem("username", newUsername);
+
+        // Reconnect WebSocket with new username
+        socketService.disconnect();
+        socketService.connect(newUsername);
+
+        console.log(`Username updated to: ${newUsername}`);
+      }
+    } catch (error) {
+      console.error("Error updating username:", error);
+    }
+  };
+
+  // Pass data and functions to the screens
+  const appProps = {
     location,
     errorMsg,
     isTracking,
@@ -89,11 +153,14 @@ export default function App() {
     getLocation,
     startLocationTracking,
     stopLocationTracking,
+    wsConnected,
+    username,
+    updateUsername,
   };
 
   return (
     <NavigationContainer>
-      <AppNavigator startLocationTracking={startLocationTracking} />
+      <AppNavigator {...appProps} />
       <StatusBar style="auto" />
     </NavigationContainer>
   );

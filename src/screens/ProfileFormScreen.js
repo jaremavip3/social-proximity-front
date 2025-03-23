@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import * as Haptics from "expo-haptics";
-
-import { registerForPushNotificationsAsync } from "../services/NotificationService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import socketService from "../services/WebSocketService";
 
 import {
   StyleSheet,
@@ -15,6 +15,7 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SvgXml } from "react-native-svg";
 
@@ -22,28 +23,48 @@ const arrowBack = `
    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.1" d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" fill="#ffffff"></path> <path d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" stroke="#ffffff" stroke-width="2"></path> <path d="M8 12L16 12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11 9L8.08704 11.913V11.913C8.03897 11.961 8.03897 12.039 8.08704 12.087V12.087L11 15" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
 `;
 
-export default function ProfileFormScreen({ navigation }) {
-  // NOTIFICATION SETUP FOR NATIVE MODULE
-  // const userId = getUserId();
-  // registerNNPushToken(28567, "user2", "CxKTyFzipAqvpDDOWwZMBAa");
-
+export default function ProfileFormScreen({ navigation, updateUsername }) {
   const [formData, setFormData] = useState({
     username: "", // Add this field
     name: "",
     email: "",
-    // languages: "",
     age: "",
     degree: "",
     university: "",
     skills: "",
     certification: "",
-    // project: "",
     companyInterests: "",
     hobbies: "",
     jobTitle: "",
   });
   const [errors, setErrors] = useState({}); // Validation errors
   const [isSubmitting, setIsSubmitting] = useState(false); // Form submission state
+  const [wsStatus, setWsStatus] = useState({ connected: false });
+
+  // Load saved username if available
+  useEffect(() => {
+    const loadSavedUsername = async () => {
+      try {
+        const savedUsername = await AsyncStorage.getItem("username");
+        if (savedUsername) {
+          setFormData((prevData) => ({ ...prevData, username: savedUsername }));
+        }
+      } catch (error) {
+        console.error("Error loading username:", error);
+      }
+    };
+
+    loadSavedUsername();
+
+    // Set up WebSocket status listener
+    socketService.addConnectionListener((connected) => {
+      setWsStatus({ connected });
+    });
+
+    return () => {
+      socketService.removeConnectionListener(setWsStatus);
+    };
+  }, []);
 
   // FUNCTION TO HANDLE INPUT CHANGES
   function handleChange(field, value) {
@@ -57,6 +78,9 @@ export default function ProfileFormScreen({ navigation }) {
   // FUNCTION TO VALIDATE FORM DATA
   function validateForm() {
     let newErrors = {};
+    if (!formData.username.trim()) {
+      newErrors.username = "Username is required";
+    }
     if (!formData.name.trim()) {
       newErrors.name = "Name is required";
     }
@@ -86,39 +110,52 @@ export default function ProfileFormScreen({ navigation }) {
     setIsSubmitting(true);
 
     try {
-      // Step 1: Register for notifications first to ensure we get the token
-      console.log("Registering for notifications with username:", formData.username);
-      const notificationTokens = await registerForPushNotificationsAsync(formData.username);
-      console.log("Notification registration successful:", notificationTokens);
+      // Save username to AsyncStorage
+      await AsyncStorage.setItem("username", formData.username);
 
-      // Add the notification tokens to the form data
-      const formDataWithTokens = {
+      // Update username in parent component if provided
+      if (updateUsername) {
+        updateUsername(formData.username);
+      }
+
+      // Connect to WebSocket with username
+      socketService.connect(formData.username);
+
+      // Convert age to integer
+      const formDataToSubmit = {
         ...formData,
-        age: parseInt(formData.age, 10), // Convert string to integer
-        notificationToken: notificationTokens?.compositeId || null,
-        expoPushToken: notificationTokens?.expoPushToken || null,
+        age: parseInt(formData.age, 10),
       };
 
-      console.log("Submitting form with tokens:", JSON.stringify(formDataWithTokens));
+      console.log("Submitting form:", JSON.stringify(formDataToSubmit));
 
-      // Step 2: Submit the form data to the server
+      // Submit to server with HTTP
       const response = await fetch("http://54.210.56.10/user/create-profile", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formDataWithTokens),
+        body: JSON.stringify(formDataToSubmit),
       });
 
       if (response.ok) {
         const data = await response.json();
         console.log("Server response:", data);
 
-        // REMOVE THIS SECOND REGISTRATION - it's redundant and causing issues
-        // const userId = formData.username;
-        // registerForPushNotificationsAsync(userId);
+        // Also announce via WebSocket that user has created profile
+        if (socketService.isConnected) {
+          socketService.sendMessage("profile_created", {
+            username: formData.username,
+            name: formData.name,
+            skills: formData.skills,
+            timestamp: new Date().toISOString(),
+          });
+        }
 
-        Alert.alert("Profile Created", "Your profile has been created successfully");
+        Alert.alert(
+          "Profile Created",
+          "Your profile has been created successfully and you are now connected for real-time updates."
+        );
         navigation.navigate("Location");
       } else {
         try {
@@ -132,7 +169,6 @@ export default function ProfileFormScreen({ navigation }) {
       }
     } catch (error) {
       console.log("Error submitting form:", error);
-      setIsSubmitting(false);
       Alert.alert("Error", "An error occurred. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -155,9 +191,11 @@ export default function ProfileFormScreen({ navigation }) {
       {errors[field] ? <Text style={styles.errorText}>{errors[field]}</Text> : null}
     </View>
   );
+
   const handleGoToWelcome = () => {
     navigation.navigate("Welcome");
   };
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -176,22 +214,28 @@ export default function ProfileFormScreen({ navigation }) {
                 <SvgXml xml={arrowBack} width={35} height={35} />
               </TouchableOpacity>
             </View>
+
+            {/* WebSocket Status Indicator */}
+            <View style={styles.statusContainer}>
+              <View
+                style={[
+                  styles.statusIndicator,
+                  wsStatus.connected ? styles.statusConnected : styles.statusDisconnected,
+                ]}
+              />
+              <Text style={styles.statusText}>
+                {wsStatus.connected ? "Real-time connection active" : "Real-time connection inactive"}
+              </Text>
+            </View>
+
             {renderField("Username (public)", "username", "Enter your username")}
             {renderField("Name", "name", "Enter your name")}
             {renderField("Email", "email", "Enter your email", "email-address")}
-            {/* {renderField(
-              "Languages",
-              "languages",
-              "Enter languages you speak (e.g., English, Spanish)",
-              "default",
-              true
-            )} */}
             {renderField("Age", "age", "Enter your age", "numeric")}
             {renderField("Degree", "degree", "Enter your degree")}
             {renderField("University", "university", "Enter your university")}
             {renderField("Skills", "skills", "Enter your skills (e.g., React, JavaScript)", "default", true)}
             {renderField("Certification", "certification", "Enter your certifications")}
-            {/* {renderField("Project", "project", "Enter your projects", "default", true)} */}
             {renderField("Company Interests", "companyInterests", "Companies you are interested in")}
             {renderField("Hobbies (separate with commas)", "hobbies", "Reading, Swimming, Hiking", "default", true)}
             {renderField("Job Title", "jobTitle", "Enter your job title")}
@@ -234,7 +278,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 20,
+  },
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    backgroundColor: "#161B2B",
+    padding: 10,
+    borderRadius: 10,
+  },
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  statusConnected: {
+    backgroundColor: "#4CAF50", // Green
+  },
+  statusDisconnected: {
+    backgroundColor: "#F44336", // Red
+  },
+  statusText: {
+    color: "#e6e6e6",
+    fontSize: 14,
   },
   arrowBack: {
     backgroundColor: "#0052CC",
@@ -246,7 +314,6 @@ const styles = StyleSheet.create({
     marginTop: 60,
     marginBottom: 60,
   },
-
   title: {
     fontSize: 24,
     fontWeight: "bold",
@@ -262,20 +329,13 @@ const styles = StyleSheet.create({
     color: "#e6e6e6",
   },
   input: {
-    // backgroundColor: "#fff",
-    // borderWidth: 2,
-    // borderStyle: "solid",
-    // borderColor: "#4169E1",
-    // padding: 10,
-    // borderRadius: 10,
     fontSize: 16,
-    backgroundColor: "#161B2B", // Dark blue background for cards
+    backgroundColor: "#161B2B",
     borderRadius: 10,
     borderStyle: "solid",
     borderWidth: 1,
     borderColor: "#4169E1",
     padding: 15,
-    // marginBottom: 15,
   },
   multilineInput: {
     minHeight: 80,
@@ -292,22 +352,19 @@ const styles = StyleSheet.create({
   submitButton: {
     backgroundColor: "#F5A623",
     paddingVertical: 15,
-    borderRadius: 5,
+    borderRadius: 15,
     marginTop: 20,
     alignItems: "center",
-    borderRadius: 15,
-  }, //F5A623
+  },
   backButton: {
     backgroundColor: "#0052CC",
     paddingVertical: 15,
-    borderRadius: 5,
+    borderRadius: 15,
     marginTop: 20,
     alignItems: "center",
-    borderRadius: 15,
-  }, //F5A623
-
+  },
   submitButtonDisabled: {
-    backgroundColor: "#a5d6a7",
+    backgroundColor: "#a5a5a5",
   },
   submitButtonText: {
     color: "#fff",
