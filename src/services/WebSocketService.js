@@ -42,7 +42,7 @@ class WebSocketService {
 
     try {
       if (!username) {
-        username = (await AsyncStorage.getItem("username")) || "anonymous";
+        username = await AsyncStorage.getItem("username");
       }
 
       this.username = username;
