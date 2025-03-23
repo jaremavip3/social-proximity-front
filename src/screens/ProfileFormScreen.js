@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import * as Haptics from "expo-haptics";
-import NativeNotify from "native-notify";
+import registerNNPushToken from "native-notify";
 
 import {
   StyleSheet,
@@ -21,7 +21,19 @@ const arrowBack = `
    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.1" d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" fill="#ffffff"></path> <path d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" stroke="#ffffff" stroke-width="2"></path> <path d="M8 12L16 12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11 9L8.08704 11.913V11.913C8.03897 11.961 8.03897 12.039 8.08704 12.087V12.087L11 15" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
 `;
 
+const APP_ID = 28566;
+const APP_TOKEN = "CxKTyFzipAqvpDDOWwZMBA";
+export const registerForPushNotifications = (userId) => {
+  // This could be email, username, or other unique ID
+  const subId = userId || "anonymous"; // Fallback if no ID available
+  console.log(`Registering for push notifications with ID: ${subId}`);
+  registerNNPushToken(APP_ID, subId, APP_TOKEN);
+};
 export default function ProfileFormScreen({ navigation }) {
+  // NOTIFICATION SETUP FOR NATIVE MODULE
+  // const userId = getUserId();
+  registerNNPushToken("user2", "CxKTyFzipAqvpDDOWwZMBA");
+
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -91,6 +103,11 @@ export default function ProfileFormScreen({ navigation }) {
       // if (response.ok) {
       //   const data = await response.json();
       //   console.log("Server response:", data);
+
+      //   // Register for push notifications with unique user ID
+      //   const userId = formData.username;
+      //   registerForPushNotifications(userId);
+
       //   Alert.alert("Profile Created", "Your profile has been created successfully");
       //   navigation.navigate("Location");
       // } else {
@@ -99,12 +116,15 @@ export default function ProfileFormScreen({ navigation }) {
       //   Alert.alert("Error", "An error occurred. Please try again.");
       // }
 
-      // __________TEST__________Simulate success for now
-      setTimeout(() => {
-        setIsSubmitting(false);
-        Alert.alert("Success", "Your profile has been saved successfully!");
-        navigation.navigate("Location");
-      }, 1000);
+      // __________TEST__________Simulate success for now_______________TO BE REMOVED!!!!!!!!!!!
+      console.log("Submitting form:", JSON.stringify(formData));
+      // Register for push notifications (with email for better identification)
+      const userId = formData.username;
+      registerForPushNotifications(userId);
+      setIsSubmitting(false);
+      Alert.alert("Success", "Your profile has been saved successfully!");
+      navigation.navigate("Location");
+      // __________TEST__________Simulate success for now_______________TO BE REMOVED!!!!!!!!!!!
     } catch (error) {
       console.log("Error submitting form:", error);
       setIsSubmitting(false);
