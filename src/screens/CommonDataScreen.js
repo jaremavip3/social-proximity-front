@@ -12,6 +12,9 @@ const arrowBack = `
 export default function CommonDataScreen({ navigation, route }) {
   // Get userData from route params if available
   const [userData, setUserData] = useState(null);
+  const [allMatches, setAllMatches] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [totalMatches, setTotalMatches] = useState(0);
   const [currentUsername, setCurrentUsername] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
 
@@ -33,9 +36,20 @@ export default function CommonDataScreen({ navigation, route }) {
     // If userData is passed via navigation, use it
     if (route.params && route.params.userData) {
       setUserData(route.params.userData);
+
+      // Check if all matches were passed and set them
+      if (route.params.allMatches && Array.isArray(route.params.allMatches)) {
+        setAllMatches(route.params.allMatches);
+        setTotalMatches(route.params.allMatches.length);
+
+        // Set current index if provided
+        if (typeof route.params.currentIndex === "number") {
+          setCurrentIndex(route.params.currentIndex);
+        }
+      }
     } else {
       // Use default data if nothing is passed
-      setUserData({
+      const defaultUser = {
         name: "Sample User",
         ranking_position: 1,
         skill_overlap: "High overlap in Java, SQL, and React skills",
@@ -46,7 +60,32 @@ export default function CommonDataScreen({ navigation, route }) {
         suggested_collaboration: "Joint projects in full-stack development with AI integration",
         reason: "High skill overlap and complementary strengths in full-stack development and AI-related interests",
         match_score: 0.9,
-      });
+      };
+
+      setUserData(defaultUser);
+
+      // Create three sample users for testing
+      setAllMatches([
+        defaultUser,
+        {
+          name: "Test User 2",
+          ranking_position: 2,
+          skill_overlap: "JavaScript, Python, Data Science",
+          complementary_strengths: "Machine Learning, AWS, Cloud Architecture",
+          reason: "Complementary skills in backend and data analysis",
+          match_score: 0.85,
+        },
+        {
+          name: "Test User 3",
+          ranking_position: 3,
+          skill_overlap: "UX Design, CSS, HTML",
+          complementary_strengths: "Visual Design, Frontend Development",
+          reason: "Your technical skills pair well with their design expertise",
+          match_score: 0.78,
+        },
+      ]);
+      setTotalMatches(3);
+      setCurrentIndex(0);
     }
 
     // Set up WebSocket connection status listener
@@ -66,6 +105,24 @@ export default function CommonDataScreen({ navigation, route }) {
     navigation.navigate("BestMatch");
   };
 
+  // Handle navigation to next match
+  const handleNextMatch = () => {
+    if (currentIndex >= totalMatches - 1) {
+      // If we're at the last match, go back to BestMatch screen
+      Alert.alert("End of Matches", "You've viewed all available matches.", [
+        { text: "OK", onPress: () => navigation.navigate("BestMatch") },
+      ]);
+      return;
+    }
+
+    // Otherwise, move to the next match
+    const nextIndex = currentIndex + 1;
+    setCurrentIndex(nextIndex);
+    setUserData(allMatches[nextIndex]);
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
   // Handle confirming connection with this user
   const handleConfirmConnection = () => {
     if (!currentUsername || !userData) return;
@@ -82,7 +139,7 @@ export default function CommonDataScreen({ navigation, route }) {
     }
 
     Alert.alert("Connection Confirmed", `You've confirmed a connection with ${userData.username || userData.name}!`, [
-      { text: "Back to Matches", onPress: () => navigation.navigate("BestMatch") },
+      { text: "View Next Match", onPress: handleNextMatch },
       { text: "Go to Welcome", onPress: () => navigation.navigate("Welcome") },
     ]);
   };
@@ -102,8 +159,8 @@ export default function CommonDataScreen({ navigation, route }) {
       });
     }
 
-    // Go back to the matches screen
-    navigation.navigate("BestMatch");
+    // Move to the next match
+    handleNextMatch();
   };
 
   //   PROGRESS CIRCLE COMPONENT
@@ -205,6 +262,15 @@ export default function CommonDataScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
+      {/* Match counter badge */}
+      {totalMatches > 1 && (
+        <View style={styles.matchCounterContainer}>
+          <Text style={styles.matchCounterText}>
+            Match {currentIndex + 1} of {totalMatches}
+          </Text>
+        </View>
+      )}
+
       {/* Connection status indicator */}
       {renderConnectionStatus()}
 
@@ -247,9 +313,15 @@ export default function CommonDataScreen({ navigation, route }) {
 
       {/* Decision buttons */}
       <View style={styles.decisionContainer}>
-        <TouchableOpacity style={[styles.decisionButton, styles.declineButton]} onPress={handleDeclineConnection}>
-          <Text style={styles.decisionButtonText}>Back to Matches</Text>
-        </TouchableOpacity>
+        {totalMatches > 1 ? (
+          <TouchableOpacity style={[styles.decisionButton, styles.declineButton]} onPress={handleDeclineConnection}>
+            <Text style={styles.decisionButtonText}>Next Match</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[styles.decisionButton, styles.declineButton]} onPress={handleGoBackToMatches}>
+            <Text style={styles.decisionButtonText}>Back to Matches</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={[styles.decisionButton, styles.confirmButton]} onPress={handleConfirmConnection}>
           <Text style={styles.decisionButtonText}>Connect</Text>
@@ -281,6 +353,21 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: "#fff",
+  },
+  matchCounterContainer: {
+    backgroundColor: "rgba(65, 105, 225, 0.2)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignSelf: "center",
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#4169E1",
+  },
+  matchCounterText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
   },
   connectionStatus: {
     paddingVertical: 6,

@@ -17,6 +17,9 @@ export default function BestMatchScreen({ navigation, route }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [wsConnected, setWsConnected] = useState(false);
 
+  // For testing purposes - if we should use mock data
+  const [useMockData, setUseMockData] = useState(false);
+
   // Load username and fetch matches automatically when component mounts
   useEffect(() => {
     const loadUserAndMatches = async () => {
@@ -73,6 +76,43 @@ export default function BestMatchScreen({ navigation, route }) {
   const fetchMatches = async (user) => {
     setIsLoading(true);
     try {
+      if (useMockData) {
+        // Use mock data for testing with 3 users
+        const mockRankings = [
+          {
+            username: "user1",
+            name: "Alex Smith",
+            match_score: 0.95,
+            skill_overlap: "React Native, JavaScript, Node.js",
+            complementary_strengths: "UI/UX Design, Backend Architecture",
+            reason: "You both share strong frontend development skills",
+          },
+          {
+            username: "user2",
+            name: "Jordan Taylor",
+            match_score: 0.87,
+            skill_overlap: "JavaScript, Python, Data Analysis",
+            complementary_strengths: "Machine Learning, Cloud Infrastructure",
+            reason: "Your JavaScript skills complement their data science background",
+          },
+          {
+            username: "user3",
+            name: "Casey Morgan",
+            match_score: 0.78,
+            skill_overlap: "React, GraphQL, TypeScript",
+            complementary_strengths: "Project Management, DevOps",
+            reason: "Their project management skills complement your technical expertise",
+          },
+        ];
+
+        setRankings(mockRankings);
+        setCurrentIndex(0);
+        setIsLoading(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        return;
+      }
+
+      // Otherwise fetch real data
       const data = await getClosestUsers(user || username);
       if (data.error) {
         Alert.alert("Error", data.error);
@@ -89,7 +129,23 @@ export default function BestMatchScreen({ navigation, route }) {
           });
         }
       } else {
-        Alert.alert("No Matches", "No matches found at this time.");
+        // If no matches found, try with mock data for testing
+        Alert.alert("No Matches Found", "Would you like to use test data instead?", [
+          {
+            text: "No",
+            style: "cancel",
+            onPress: () => {
+              Alert.alert("No Matches", "No matches found at this time.");
+            },
+          },
+          {
+            text: "Yes",
+            onPress: () => {
+              setUseMockData(true);
+              fetchMatches(user);
+            },
+          },
+        ]);
       }
     } catch (error) {
       console.error("Error fetching matches:", error);
@@ -116,7 +172,11 @@ export default function BestMatchScreen({ navigation, route }) {
     }
 
     // Navigate to the CommonData screen with the current match data
-    navigation.navigate("CommonData", { userData: rankings[currentIndex] });
+    navigation.navigate("CommonData", {
+      userData: rankings[currentIndex],
+      allMatches: rankings,
+      currentIndex: currentIndex,
+    });
   };
 
   // Handle rejecting a match / going to next match
@@ -151,6 +211,12 @@ export default function BestMatchScreen({ navigation, route }) {
     navigation.navigate("Welcome");
   };
 
+  // Toggle between real and mock data
+  const toggleMockData = () => {
+    setUseMockData(!useMockData);
+    fetchMatches(username);
+  };
+
   // Get current match
   const currentMatch = rankings.length > 0 ? rankings[currentIndex] : null;
 
@@ -172,6 +238,11 @@ export default function BestMatchScreen({ navigation, route }) {
 
       {/* Connection status indicator */}
       {renderConnectionStatus()}
+
+      {/* Test data toggle button */}
+      <TouchableOpacity style={styles.testDataToggle} onPress={toggleMockData}>
+        <Text style={styles.testDataText}>{useMockData ? "Using Test Data" : "Using Real Data"}</Text>
+      </TouchableOpacity>
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -283,6 +354,21 @@ const styles = StyleSheet.create({
   },
   connectionText: {
     color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  testDataToggle: {
+    backgroundColor: "rgba(255, 193, 7, 0.2)",
+    borderWidth: 1,
+    borderColor: "#FFC107",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignSelf: "center",
+    marginBottom: 15,
+  },
+  testDataText: {
+    color: "#FFC107",
     fontSize: 12,
     fontWeight: "bold",
   },

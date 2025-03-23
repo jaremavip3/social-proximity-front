@@ -1,3 +1,4 @@
+// src/screens/WelcomeScreen.js - Updated with enhanced Start App functionality
 import React, { useState, useEffect } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { SvgXml } from "react-native-svg";
@@ -113,20 +114,8 @@ const WelcomeScreen = ({ navigation, route }) => {
         timestamp: new Date().toISOString(),
       });
 
-      // 5. Fetch matches from server
-      const matchData = await getClosestUsers(username);
-      if (matchData.error) {
-        throw new Error(matchData.error);
-      }
-
-      if (!matchData.rankings || matchData.rankings.length === 0) {
-        Alert.alert("No Matches Found", "No matches are available right now. Please try again later.");
-        setIsLoading(false);
-        return;
-      }
-
-      // 6. Navigate to BestMatch screen with the fetched matches
-      navigation.navigate("BestMatch");
+      // 5. Navigate to LocationScreen first (instead of trying to fetch matches immediately)
+      navigation.navigate("Location");
 
       // Success feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -141,6 +130,7 @@ const WelcomeScreen = ({ navigation, route }) => {
   const handleGoToProfile = () => {
     navigation.navigate("Profile");
   };
+
   const handleTestCommonData = () => {
     // Simple navigation to CommonDataScreen
     navigation.navigate("CommonData");
