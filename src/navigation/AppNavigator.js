@@ -22,6 +22,7 @@ const AppNavigator = ({ startLocationTracking }) => {
       <Stack.Screen name="Profile" component={ProfileFormScreen} />
       <Stack.Screen name="Location" component={LocationScreen} />
       <Stack.Screen name="CommonData" component={CommonDataScreen} />
+      <Stack.Screen name="BestMatch" component={BestMatchScreen} />
     </Stack.Navigator>
   );
 };

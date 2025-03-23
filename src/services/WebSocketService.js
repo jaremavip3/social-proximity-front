@@ -6,7 +6,9 @@ import * as Haptics from "expo-haptics";
 class WebSocketService {
   constructor() {
     this.socket = null;
-    this.serverUrl = "ws://54.210.56.10:8080/ws"; // Змінено URL з портом
+    this.serverUrl = "ws://54.210.56.10:8080/ws"; // Original URL
+    this.bestMatchServerUrl = "ws://localhost:8090/ws"; // Your friend's URL for best match
+    this.currentServerUrl = null;
     this.isConnected = false;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
@@ -15,6 +17,7 @@ class WebSocketService {
     this.connectionListeners = [];
     this.username = null;
     this.appState = AppState.currentState;
+    this.connectionType = "default"; // "default" or "bestMatch"
 
     // Зберігаємо підписку для можливості її видалення пізніше
     this.appStateSubscription = AppState.addEventListener("change", this._handleAppStateChange);
@@ -29,8 +32,15 @@ class WebSocketService {
   };
 
   // Connect to WebSocket server
-  async connect(username) {
-    if (this.isConnected) return true;
+  async connect(username, type = "default") {
+    if (this.isConnected) {
+      // If already connected but to a different type of server, disconnect first
+      if (this.connectionType !== type) {
+        this.disconnect();
+      } else {
+        return true; // Already connected to the right server
+      }
+    }
 
     try {
       if (!username) {
@@ -38,17 +48,21 @@ class WebSocketService {
       }
 
       this.username = username;
+      this.connectionType = type;
+
+      // Select the appropriate server URL based on type
+      this.currentServerUrl = type === "bestMatch" ? this.bestMatchServerUrl : this.serverUrl;
 
       // Store username for reconnection
       await AsyncStorage.setItem("username", username);
 
-      console.log(`Connecting to WebSocket as ${username}...`);
+      console.log(`Connecting to ${type} WebSocket as ${username}...`);
 
       // Create WebSocket connection with username as query parameter
-      this.socket = new WebSocket(`${this.serverUrl}?username=${encodeURIComponent(username)}`);
+      this.socket = new WebSocket(`${this.currentServerUrl}?username=${encodeURIComponent(username)}`);
 
       this.socket.onopen = () => {
-        console.log("WebSocket connection established");
+        console.log(`${type} WebSocket connection established`);
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this._notifyConnectionListeners(true);
@@ -60,11 +74,11 @@ class WebSocketService {
       this.socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log("Received WebSocket message:", message);
+          console.log(`Received ${type} WebSocket message:`, message);
           this._notifyMessageListeners(message);
 
           // Vibrate for important messages
-          if (message.type === "proximity_alert" || message.type === "notification") {
+          if (message.type === "proximity_alert" || message.type === "notification" || message.type === "best_match") {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           }
         } catch (error) {
@@ -73,11 +87,11 @@ class WebSocketService {
       };
 
       this.socket.onerror = (error) => {
-        console.error("WebSocket error:", error);
+        console.error(`${type} WebSocket error:`, error);
       };
 
       this.socket.onclose = (event) => {
-        console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
+        console.log(`${type} WebSocket connection closed: ${event.code} ${event.reason}`);
         this.isConnected = false;
         this._notifyConnectionListeners(false);
         this._attemptReconnect();
@@ -85,9 +99,14 @@ class WebSocketService {
 
       return true;
     } catch (error) {
-      console.error("Failed to establish WebSocket connection:", error);
+      console.error(`Failed to establish ${type} WebSocket connection:`, error);
       return false;
     }
+  }
+
+  // Connect specifically to the best match WebSocket
+  connectToBestMatch(username) {
+    return this.connect(username, "bestMatch");
   }
 
   // Send a message through WebSocket
@@ -123,6 +142,12 @@ class WebSocketService {
 
   // Remove a message listener
   removeMessageListener(callback) {
+    if (!callback) {
+      // If no specific callback provided, remove all listeners
+      this.messageListeners = [];
+      return true;
+    }
+
     const initialLength = this.messageListeners.length;
     this.messageListeners = this.messageListeners.filter((listener) => listener !== callback);
     return initialLength !== this.messageListeners.length;
@@ -190,7 +215,7 @@ class WebSocketService {
 
     clearTimeout(this.reconnectTimeout);
     this.reconnectTimeout = setTimeout(() => {
-      this.connect(this.username);
+      this.connect(this.username, this.connectionType);
     }, delay);
   }
 
@@ -203,7 +228,7 @@ class WebSocketService {
     this.reconnectAttempts = 0;
     clearTimeout(this.reconnectTimeout);
 
-    return this.connect(this.username);
+    return this.connect(this.username, this.connectionType);
   }
 
   // Disconnect WebSocket
@@ -229,6 +254,8 @@ class WebSocketService {
       isConnected: this.isConnected,
       username: this.username,
       reconnectAttempts: this.reconnectAttempts,
+      connectionType: this.connectionType,
+      serverUrl: this.currentServerUrl,
     };
   }
 

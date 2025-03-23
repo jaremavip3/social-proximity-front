@@ -83,6 +83,18 @@ const WelcomeScreen = ({ navigation, route }) => {
     navigation.navigate("Profile");
   };
 
+  const handleFindBestMatch = () => {
+    if (!username) {
+      Alert.alert("Profile Required", "Please create a profile first to find your best matches.", [
+        { text: "OK", onPress: () => navigation.navigate("Profile") },
+      ]);
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate("BestMatch");
+  };
+
   const handleGoToCOMMOND_DATA_SCREEN = () => {
     navigation.navigate("CommonData");
   };
@@ -129,6 +141,11 @@ const WelcomeScreen = ({ navigation, route }) => {
           }}
         >
           <Text style={styles.buttonText}>Start App</Text>
+        </TouchableOpacity>
+
+        {/* New button for finding best match */}
+        <TouchableOpacity style={[styles.button, styles.matchButton]} activeOpacity={0.5} onPress={handleFindBestMatch}>
+          <Text style={styles.buttonText}>Find Best Match</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.button, styles.profileButton]} activeOpacity={0.5} onPress={handleGoToProfile}>
@@ -206,6 +223,9 @@ const styles = StyleSheet.create({
   },
   startButton: {
     backgroundColor: "#F5A623", // Yellow color
+  },
+  matchButton: {
+    backgroundColor: "#4CAF50", // Green color for match finding
   },
   profileButton: {
     backgroundColor: "#0052CC", // Blue color
