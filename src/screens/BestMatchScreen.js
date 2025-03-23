@@ -64,12 +64,61 @@ export default function BestMatchScreen({ navigation, route }) {
 
   // Handle WebSocket messages related to matches
   const handleWebSocketMessage = (message) => {
+    console.log("Processing message type:", message.type);
+
+    // Handle the analysis_done message with nested JSON in text field
+    if (message.type === "analysis_done" && message.data && message.data.text) {
+      try {
+        // Extract JSON from the markdown code block in the text field
+        const jsonMatch = message.data.text.match(/```json\n([\s\S]*?)\n```/);
+
+        if (jsonMatch && jsonMatch[1]) {
+          // Parse the extracted JSON
+          const rankingData = JSON.parse(jsonMatch[1]);
+
+          if (rankingData.ranking && rankingData.ranking.length > 0) {
+            console.log("Successfully parsed ranking data:", rankingData.ranking);
+
+            // Update your state with the parsed rankings
+            setRankings(rankingData.ranking);
+            setCurrentIndex(0); // Reset to first match
+            setIsLoading(false);
+
+            // Provide feedback
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing ranking data:", error);
+      }
+    }
+
+    // Your existing handler code for other message types
     if (message.type === "match_update" && message.payload && message.payload.rankings) {
-      // Update rankings if new match data is received
       setRankings(message.payload.rankings);
-      setCurrentIndex(0); // Reset to first match
+      setCurrentIndex(0);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+  };
+
+  // Add test functionality for simulating a message
+  const handleTestData = () => {
+    // This is the exact message format from your console logs
+    const testMessage = {
+      type: "analysis_done",
+      data: {
+        chat_history: [{}, {}],
+        finish_reason: "COMPLETE",
+        generation_id: "228c5ca5-38c0-4c24-a56c-b9cf2feb9ffa",
+        meta: {},
+        response_id: "26bc8645-6cfb-4e24-a184-d9d334de0491",
+        text: '```json\n{\n        "ranking": [\n                {\n                "name": "ducnguyen21",\n                "ranking_position": 1,\n                "skill_overlap": "React",\n                "complementary_strengths": "Golang, .Net, websocket",\n                "networking_potential": "High, due to shared React expertise and complementary backend skills",\n                "suggested_collaboration": "Full-stack development projects leveraging React and Golang/websocket integration",\n                "reason": "Strong skill overlap with React and highly complementary backend skills, offering great potential for full-stack collaboration.",\n                "match_score": 0.80\n                },\n                {\n                "name": "Integrate",\n                "ranking_position": 2,\n                "skill_overlap": "React",\n                "complementary_strengths": "Golang, websockets",\n                "networking_potential": "Moderate to High, due to shared React expertise and complementary backend skills",\n                "suggested_collaboration": "Real-time web application development using React and websockets",\n                "reason": "Good skill overlap with React and complementary backend skills, particularly in real-time communication technologies.",\n                "match_score": 0.75\n                }\n        ]\n}\n```',
+      },
+    };
+
+    // Process the test message using the same handler
+    handleWebSocketMessage(testMessage);
   };
 
   // Function to fetch matches
@@ -244,6 +293,11 @@ export default function BestMatchScreen({ navigation, route }) {
         <Text style={styles.testDataText}>{useMockData ? "Using Test Data" : "Using Real Data"}</Text>
       </TouchableOpacity>
 
+      {/* Test button for WebSocket data */}
+      <TouchableOpacity style={styles.testButton} onPress={handleTestData}>
+        <Text style={styles.testButtonText}>Test WebSocket Data</Text>
+      </TouchableOpacity>
+
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#F5A623" />
@@ -369,6 +423,21 @@ const styles = StyleSheet.create({
   },
   testDataText: {
     color: "#FFC107",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  testButton: {
+    backgroundColor: "rgba(156, 39, 176, 0.2)",
+    borderWidth: 1,
+    borderColor: "#9C27B0",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignSelf: "center",
+    marginBottom: 15,
+  },
+  testButtonText: {
+    color: "#CE93D8",
     fontSize: 12,
     fontWeight: "bold",
   },
