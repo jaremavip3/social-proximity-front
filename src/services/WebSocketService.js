@@ -1,6 +1,6 @@
 // src/services/WebSocketService.js
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AppState } from "react-native";
+import { AppState, Alert } from "react-native";
 import * as Haptics from "expo-haptics";
 
 class WebSocketService {
@@ -16,8 +16,30 @@ class WebSocketService {
     this.username = null;
     this.appState = AppState.currentState;
 
+    // New properties for navigation and match detection
+    this.navigationRef = null;
+    this.matchesFound = false;
+    this.matchData = null;
+
     // Store app state subscription for cleanup
     this.appStateSubscription = AppState.addEventListener("change", this._handleAppStateChange);
+  }
+
+  // New method to register navigation reference
+  setNavigationRef(ref) {
+    this.navigationRef = ref;
+    console.log("Navigation reference set in WebSocketService");
+  }
+
+  // New method to navigate screens from the service
+  navigate(routeName, params = {}) {
+    if (this.navigationRef && this.navigationRef.isReady()) {
+      this.navigationRef.navigate(routeName, params);
+      return true;
+    } else {
+      console.warn("Navigation reference not ready or not set");
+      return false;
+    }
   }
 
   // Handle app state changes (foreground/background)
@@ -130,18 +152,87 @@ class WebSocketService {
     switch (message.type) {
       case "proximity_alert":
       case "notification":
-      case "match_found":
       case "connection_request":
         // Provide haptic feedback for important messages
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         break;
+
       case "message":
         // Provide lighter feedback for regular messages
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         break;
+
       case "match_update":
+      case "match_found":
         // When new matches are found
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Store match data and flag matches as found
+        if (message.type === "match_update" && message.payload && message.payload.rankings) {
+          this.matchesFound = true;
+          this.matchData = message.payload.rankings;
+
+          // Alert user and offer to navigate to matches
+          Alert.alert(
+            "Matches Updated!",
+            "We've found new people with similar interests. Would you like to view your matches now?",
+            [
+              {
+                text: "Not Now",
+                style: "cancel",
+              },
+              {
+                text: "View Matches",
+                onPress: () => {
+                  if (this.navigationRef) {
+                    this.navigate("BestMatch");
+                  }
+                },
+              },
+            ]
+          );
+        }
+        break;
+
+      case "analysis_done":
+        // When analysis is completed (which may contain match data)
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        if (message.data && message.data.text) {
+          try {
+            // Extract JSON from the markdown code block in the text field
+            const jsonMatch = message.data.text.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch && jsonMatch[1]) {
+              const rankingData = JSON.parse(jsonMatch[1]);
+              if (rankingData.ranking && rankingData.ranking.length > 0) {
+                this.matchesFound = true;
+                this.matchData = rankingData.ranking;
+
+                // Alert user and offer to navigate to matches
+                Alert.alert(
+                  "Matches Found!",
+                  "We've found people with similar interests. Would you like to view your matches now?",
+                  [
+                    {
+                      text: "Not Now",
+                      style: "cancel",
+                    },
+                    {
+                      text: "View Matches",
+                      onPress: () => {
+                        if (this.navigationRef) {
+                          this.navigate("BestMatch");
+                        }
+                      },
+                    },
+                  ]
+                );
+              }
+            }
+          } catch (error) {
+            console.error("Error parsing ranking data:", error);
+          }
+        }
         break;
     }
   }
@@ -325,6 +416,22 @@ class WebSocketService {
     });
   }
 
+  // New method to check if matches are available
+  hasMatches() {
+    return this.matchesFound && Array.isArray(this.matchData) && this.matchData.length > 0;
+  }
+
+  // New method to get available matches
+  getMatches() {
+    return this.matchData || [];
+  }
+
+  // New method to clear match data
+  clearMatches() {
+    this.matchesFound = false;
+    this.matchData = null;
+  }
+
   // Get connection status
   getStatus() {
     return {
@@ -332,6 +439,8 @@ class WebSocketService {
       username: this.username,
       reconnectAttempts: this.reconnectAttempts,
       serverUrl: this.serverUrl,
+      matchesFound: this.matchesFound,
+      matchCount: this.matchData ? this.matchData.length : 0,
     };
   }
 

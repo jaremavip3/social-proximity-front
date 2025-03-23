@@ -33,8 +33,17 @@ export default function BestMatchScreen({ navigation, route }) {
             await socketService.connect(savedUsername);
           }
 
-          // Fetch matches automatically when username is loaded
-          fetchMatches(savedUsername);
+          // Check if matches are already available in WebSocketService
+          if (socketService.hasMatches()) {
+            const matches = socketService.getMatches();
+            setRankings(matches);
+            setCurrentIndex(0);
+            setIsLoading(false);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } else {
+            // Fetch matches if not available
+            fetchMatches(savedUsername);
+          }
         } else {
           setIsLoading(false);
           Alert.alert("Profile Required", "You need to create a profile before finding matches.", [
@@ -84,6 +93,10 @@ export default function BestMatchScreen({ navigation, route }) {
             setCurrentIndex(0); // Reset to first match
             setIsLoading(false);
 
+            // Also update the WebSocketService's match data
+            socketService.matchesFound = true;
+            socketService.matchData = rankingData.ranking;
+
             // Provide feedback
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             return;
@@ -98,6 +111,12 @@ export default function BestMatchScreen({ navigation, route }) {
     if (message.type === "match_update" && message.payload && message.payload.rankings) {
       setRankings(message.payload.rankings);
       setCurrentIndex(0);
+
+      // Also update the WebSocketService's match data
+      socketService.matchesFound = true;
+      socketService.matchData = message.payload.rankings;
+
+      setIsLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   };
@@ -156,6 +175,11 @@ export default function BestMatchScreen({ navigation, route }) {
 
         setRankings(mockRankings);
         setCurrentIndex(0);
+
+        // Update the WebSocketService's match data
+        socketService.matchesFound = true;
+        socketService.matchData = mockRankings;
+
         setIsLoading(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         return;
@@ -168,6 +192,11 @@ export default function BestMatchScreen({ navigation, route }) {
       } else if (data.rankings && data.rankings.length > 0) {
         setRankings(data.rankings);
         setCurrentIndex(0);
+
+        // Update the WebSocketService's match data
+        socketService.matchesFound = true;
+        socketService.matchData = data.rankings;
+
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         // Also send request for matches via WebSocket for realtime updates
@@ -266,6 +295,28 @@ export default function BestMatchScreen({ navigation, route }) {
     fetchMatches(username);
   };
 
+  // Manual refresh matches
+  const handleRefreshMatches = () => {
+    if (!username) return;
+
+    // Clear any existing matches
+    setRankings([]);
+    setCurrentIndex(0);
+
+    // Send request for matches via WebSocket
+    if (socketService.isConnected) {
+      socketService.sendMessage("request_matches", {
+        username: username,
+        timestamp: new Date().toISOString(),
+      });
+
+      Alert.alert("Requesting Matches", "Looking for people with similar interests. This may take a moment...");
+    }
+
+    // Also try HTTP fetch for matches
+    fetchMatches(username);
+  };
+
   // Get current match
   const currentMatch = rankings.length > 0 ? rankings[currentIndex] : null;
 
@@ -296,6 +347,11 @@ export default function BestMatchScreen({ navigation, route }) {
       {/* Test button for WebSocket data */}
       <TouchableOpacity style={styles.testButton} onPress={handleTestData}>
         <Text style={styles.testButtonText}>Test WebSocket Data</Text>
+      </TouchableOpacity>
+
+      {/* Refresh Matches button */}
+      <TouchableOpacity style={styles.refreshButton} onPress={handleRefreshMatches} disabled={isLoading}>
+        <Text style={styles.refreshButtonText}>{isLoading ? "Finding Matches..." : "Refresh Matches"}</Text>
       </TouchableOpacity>
 
       {isLoading ? (
@@ -419,7 +475,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     alignSelf: "center",
-    marginBottom: 15,
+    marginBottom: 10,
   },
   testDataText: {
     color: "#FFC107",
@@ -434,10 +490,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     alignSelf: "center",
-    marginBottom: 15,
+    marginBottom: 10,
   },
   testButtonText: {
     color: "#CE93D8",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  refreshButton: {
+    backgroundColor: "rgba(33, 150, 243, 0.2)",
+    borderWidth: 1,
+    borderColor: "#2196F3",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignSelf: "center",
+    marginBottom: 15,
+  },
+  refreshButtonText: {
+    color: "#2196F3",
     fontSize: 12,
     fontWeight: "bold",
   },

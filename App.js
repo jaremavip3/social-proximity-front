@@ -1,12 +1,11 @@
-// Modified App.js with WebSocket integration
+// Replacement for App.js
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View, Button, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import { StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import * as Location from "expo-location";
-import { NavigationContainer } from "@react-navigation/native";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { sendLocationToServer } from "./src/services/LocationService";
-import socketService from "./src/services/WebSocketService"; // Import WebSocket service
+import socketService from "./src/services/WebSocketService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function App() {
@@ -62,7 +61,8 @@ export default function App() {
     // Clean up WebSocket on unmount
     return () => {
       socketService.removeConnectionListener(setWsConnected);
-      socketService.cleanup();
+      // Don't clean up the service completely as it's used across screens
+      // socketService.cleanup();
     };
   }, [username]);
 
@@ -159,9 +159,9 @@ export default function App() {
   };
 
   return (
-    <NavigationContainer>
+    <>
       <AppNavigator {...appProps} />
       <StatusBar style="auto" />
-    </NavigationContainer>
+    </>
   );
 }
