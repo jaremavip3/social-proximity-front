@@ -94,7 +94,7 @@ const LocationScreen = ({ navigation, route }) => {
             socketService.sendMessage("location_update", {
               username: username,
               latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
+              longitude: location.coords.longitude, //longitude
               timestamp: new Date().toISOString(),
             });
           }
@@ -232,7 +232,7 @@ const LocationScreen = ({ navigation, route }) => {
   if (errorMsg) {
     locationText = errorMsg;
   } else if (location) {
-    locationText = `Username: ${username}\nLatitude: ${location.coords.latitude}\nLongitude: ${location.coords.longitude}`;
+    locationText = `Username: ${username}\nLatitude: ${location.coords.latitude}\nlongitude: ${location.coords.longitude}`;
   }
 
   const handleBackToWelcome = () => {
