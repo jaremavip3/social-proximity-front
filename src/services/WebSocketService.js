@@ -6,7 +6,7 @@ import * as Haptics from "expo-haptics";
 class WebSocketService {
   constructor() {
     this.socket = null;
-    this.serverUrl = "ws://54.210.56.10:8080/ws";
+    this.serverUrl = "ws://54.210.56.10/ws";
     this.isConnected = false;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
@@ -53,7 +53,7 @@ class WebSocketService {
       console.log(`Connecting to WebSocket as ${username}...`);
 
       // Create WebSocket connection with username as query parameter
-      this.socket = new WebSocket(`${this.serverUrl}?username=${encodeURIComponent(username)}`);
+      this.socket = new WebSocket(`${this.serverUrl}?username=${username}`);
 
       this.socket.onopen = () => {
         console.log("WebSocket connection established");
@@ -82,7 +82,7 @@ class WebSocketService {
       this.socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log(`Received WebSocket message:`, message);
+          console.log(`!!!!!!!!!!!Received WebSocket message:`, message);
           this._notifyMessageListeners(message);
 
           // Handle specific message types

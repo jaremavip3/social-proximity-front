@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     backgroundColor: "#D32F2F", // Red color for destructive action
-    marginTop: 10,
+    marginBottom: 40,
   },
   buttonText: {
     color: "white",
