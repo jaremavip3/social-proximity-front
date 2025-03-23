@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import * as Haptics from "expo-haptics";
-import registerNNPushToken from "native-notify";
+
+import { registerForPushNotificationsAsync } from "../services/NotificationService";
 
 import {
   StyleSheet,
@@ -21,29 +22,23 @@ const arrowBack = `
    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.1" d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" fill="#ffffff"></path> <path d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" stroke="#ffffff" stroke-width="2"></path> <path d="M8 12L16 12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11 9L8.08704 11.913V11.913C8.03897 11.961 8.03897 12.039 8.08704 12.087V12.087L11 15" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
 `;
 
-const APP_ID = 28566;
-const APP_TOKEN = "CxKTyFzipAqvpDDOWwZMBA";
-export const registerForPushNotifications = (userId) => {
-  // This could be email, username, or other unique ID
-  const subId = userId || "anonymous"; // Fallback if no ID available
-  console.log(`Registering for push notifications with ID: ${subId}`);
-  registerNNPushToken(APP_ID, subId, APP_TOKEN);
-};
 export default function ProfileFormScreen({ navigation }) {
   // NOTIFICATION SETUP FOR NATIVE MODULE
   // const userId = getUserId();
-  registerNNPushToken("user2", "CxKTyFzipAqvpDDOWwZMBA");
+  // registerNNPushToken(28567, "user2", "CxKTyFzipAqvpDDOWwZMBAa");
 
   const [formData, setFormData] = useState({
+    username: "", // Add this field
     name: "",
+    email: "",
+    // languages: "",
     age: "",
     degree: "",
     university: "",
     skills: "",
     certification: "",
-    project: "",
+    // project: "",
     companyInterests: "",
-    email: "",
     hobbies: "",
     jobTitle: "",
   });
@@ -89,46 +84,65 @@ export default function ProfileFormScreen({ navigation }) {
       return;
     }
     setIsSubmitting(true);
-    // Submit the form data to the server
-    console.log("Submitting form:", JSON.stringify(formData));
+
     try {
-      // const response = await fetch("https://myapi.com/profile", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify(formData),
-      // });
+      // Step 1: Register for notifications first to ensure we get the token
+      console.log("Registering for notifications with username:", formData.username);
+      const notificationTokens = await registerForPushNotificationsAsync(formData.username);
+      console.log("Notification registration successful:", notificationTokens);
 
-      // if (response.ok) {
-      //   const data = await response.json();
-      //   console.log("Server response:", data);
+      // Add the notification tokens to the form data
+      const formDataWithTokens = {
+        ...formData,
+        age: parseInt(formData.age, 10), // Convert string to integer
+        notificationToken: notificationTokens?.compositeId || null,
+        expoPushToken: notificationTokens?.expoPushToken || null,
+      };
+      console.log("Submitting form with tokens:", JSON.stringify(formDataWithTokens));
+      // Step 2: Submit the form data to the server
+      const response = await fetch("http://54.210.56.10/user/create-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formDataWithTokens),
+      });
 
-      //   // Register for push notifications with unique user ID
-      //   const userId = formData.username;
-      //   registerForPushNotifications(userId);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Server response:", data);
 
-      //   Alert.alert("Profile Created", "Your profile has been created successfully");
-      //   navigation.navigate("Location");
-      // } else {
-      //   const errorData = await response.json();
-      //   console.log("Server error:", errorData);
-      //   Alert.alert("Error", "An error occurred. Please try again.");
-      // }
+        // Register for push notifications with unique user ID
+        const userId = formData.username;
+        registerForPushNotificationsAsync(userId);
+
+        Alert.alert("Profile Created", "Your profile has been created successfully");
+        navigation.navigate("Location");
+      } else {
+        const errorData = await response.json();
+        console.log("Server error:", errorData);
+        Alert.alert("Error", "An error occurred. Please try again.");
+      }
 
       // __________TEST__________Simulate success for now_______________TO BE REMOVED!!!!!!!!!!!
-      console.log("Submitting form:", JSON.stringify(formData));
-      // Register for push notifications (with email for better identification)
-      const userId = formData.username;
-      registerForPushNotifications(userId);
-      setIsSubmitting(false);
-      Alert.alert("Success", "Your profile has been saved successfully!");
-      navigation.navigate("Location");
+      // console.log("Submitting form:", JSON.stringify(formData));
+
+      // // Register for push notifications (with email for better identification)
+
+      // const userId = formData.username;
+      // const notificationTokens = await registerForPushNotificationsAsync(userId);
+      // console.log("Notification registration successful:", notificationTokens);
+
+      // setIsSubmitting(false);
+      // Alert.alert("Success", "Your profile has been saved successfully!");
+      // navigation.navigate("Location");
       // __________TEST__________Simulate success for now_______________TO BE REMOVED!!!!!!!!!!!
     } catch (error) {
       console.log("Error submitting form:", error);
       setIsSubmitting(false);
       Alert.alert("Error", "An error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -169,37 +183,24 @@ export default function ProfileFormScreen({ navigation }) {
                 <SvgXml xml={arrowBack} width={35} height={35} />
               </TouchableOpacity>
             </View>
-            {renderField("Username (public)", "username", "Enter your unsername")}
+            {renderField("Username (public)", "username", "Enter your username")}
             {renderField("Name", "name", "Enter your name")}
             {renderField("Email", "email", "Enter your email", "email-address")}
-            {renderField(
+            {/* {renderField(
               "Languages",
-              "language",
+              "languages",
               "Enter languages you speak (e.g., English, Spanish)",
               "default",
               true
-            )}
+            )} */}
             {renderField("Age", "age", "Enter your age", "numeric")}
             {renderField("Degree", "degree", "Enter your degree")}
             {renderField("University", "university", "Enter your university")}
             {renderField("Skills", "skills", "Enter your skills (e.g., React, JavaScript)", "default", true)}
             {renderField("Certification", "certification", "Enter your certifications")}
-            {renderField("Project", "project", "Enter your projects", "default", true)}
+            {/* {renderField("Project", "project", "Enter your projects", "default", true)} */}
             {renderField("Company Interests", "companyInterests", "Companies you are interested in")}
-
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Hobbies (separate with commas)</Text>
-              <TextInput
-                style={[styles.input, styles.multilineInput]}
-                placeholder="Reading, Swimming, Hiking"
-                placeholderTextColor="#FFFFFFCC"
-                value={formData.hobbies}
-                color="#fff"
-                onChangeText={(text) => handleChange("hobbies", text)}
-                multiline
-              />
-            </View>
-
+            {renderField("Hobbies (separate with commas)", "hobbies", "Reading, Swimming, Hiking", "default", true)}
             {renderField("Job Title", "jobTitle", "Enter your job title")}
 
             <TouchableOpacity

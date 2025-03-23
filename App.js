@@ -4,10 +4,28 @@ import { useState, useEffect, useRef } from "react";
 import * as Location from "expo-location";
 import { NavigationContainer } from "@react-navigation/native";
 import AppNavigator from "./src/navigation/AppNavigator";
-
+import { setupNotificationListeners, removeNotificationListeners } from "./src/services/NotificationService";
 import { sendLocationToServer } from "./src/services/LocationService";
 
 export default function App() {
+  useEffect(() => {
+    // Set up notification listeners when app starts
+    const listeners = setupNotificationListeners(
+      (notification) => {
+        // Handle received notification
+        console.log("Got notification while app was open:", notification);
+      },
+      (response) => {
+        // Handle notification tap
+        console.log("User tapped notification:", response);
+        // You can navigate to specific screens based on notification
+      }
+    );
+
+    // Clean up listeners on unmount
+    return () => removeNotificationListeners(listeners);
+  }, []);
+
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isTracking, setIsTracking] = useState(false);
