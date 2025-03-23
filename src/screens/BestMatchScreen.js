@@ -233,6 +233,11 @@ export default function BestMatchScreen({ navigation, route }) {
     }
   };
 
+  // Додайте функцію для переходу до екрану HI
+  const handleShowHi = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate("ConnectionConfirmed");
+  };
   // Handle accepting a match
   const handleAcceptMatch = () => {
     if (!rankings.length) return;
@@ -627,5 +632,21 @@ const styles = StyleSheet.create({
   rankingText: {
     color: "#aaa",
     fontSize: 14,
+  },
+  quickActions: {
+    marginTop: 10,
+    alignItems: "center",
+  },
+  hiButton: {
+    backgroundColor: "#F5A623",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 5,
+  },
+  hiButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
