@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import * as Haptics from "expo-haptics";
+import NativeNotify from "native-notify";
 
 import {
   StyleSheet,

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "social-proximity-front",
-    "slug": "social-proximity-front",
+    "slug": "notification",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,6 +23,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "050460c1-13eb-4499-a95d-106f8d789d63"
+      }
+    },
+    "owner": "anonymouscel365"
   }
 }
