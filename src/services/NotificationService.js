@@ -43,51 +43,25 @@ const getDeviceIdentifier = async () => {
 // Register for push notifications with both systems
 export async function registerForPushNotificationsAsync(userId) {
   try {
-    // 1. First, request permissions
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
+    // Request permissions and other setup...
 
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== "granted") {
-      console.log("Failed to get push token: permission not granted");
-      return null;
-    }
-
-    // 2. Get the Expo push token
-    const expoPushToken = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log("Expo Push Token:", expoPushToken);
-
-    // 3. Set up Android channel
-    if (Platform.OS === "android") {
-      Notifications.setNotificationChannelAsync("default", {
-        name: "default",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF231F7C",
-      });
-    }
-
-    // 4. Get device identifier for Native Notify
+    // Get device identifier
     const deviceId = await getDeviceIdentifier();
 
-    // 5. Create composite ID (user@device) for targeted notifications
+    // IMPORTANT FIX: Add delimiter to prevent prefix matching issues
+    // This ensures "user1" doesn't match with "user10"
     const safeUserId = userId || "anonymous";
-    const compositeId = `${safeUserId}@${deviceId}`;
+    const compositeId = `__${safeUserId}__@${deviceId}`;
     console.log("Registering with Native Notify using composite ID:", compositeId);
 
-    // 6. Register with Native Notify
+    // Register with Native Notify
     registerNNPushToken(NATIVE_NOTIFY_APP_ID, compositeId, NATIVE_NOTIFY_APP_TOKEN);
 
-    // 7. Store the mapping for reference
+    // Store the userId without the delimiter for easier reference
     await AsyncStorage.setItem("currentUser", safeUserId);
 
-    // Return both tokens for reference
     return {
-      expoPushToken,
+      expoPushToken: expoPushToken || "expo-token-unavailable",
       compositeId,
     };
   } catch (error) {
@@ -120,7 +94,7 @@ export async function getCurrentRegistrationInfo() {
   try {
     const deviceId = (await AsyncStorage.getItem("deviceId")) || "unknown";
     const userId = (await AsyncStorage.getItem("currentUser")) || "anonymous";
-    const compositeId = `${userId}@${deviceId}`;
+    const compositeId = `__${userId}__@${deviceId}`;
 
     return {
       deviceId,
@@ -160,5 +134,24 @@ export function removeNotificationListeners(listeners) {
   }
   if (listeners?.responseListener) {
     Notifications.removeNotificationSubscription(listeners.responseListener);
+  }
+}
+
+export async function checkNotificationRegistration() {
+  try {
+    const info = await getCurrentRegistrationInfo();
+    console.log("Current registration:", info);
+
+    // Check permissions
+    const { status } = await Notifications.getPermissionsAsync();
+    console.log("Notification permission status:", status);
+
+    return {
+      ...info,
+      permissionStatus: status,
+    };
+  } catch (error) {
+    console.log("Error checking registration:", error);
+    return null;
   }
 }

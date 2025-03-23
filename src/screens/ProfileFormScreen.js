@@ -98,7 +98,9 @@ export default function ProfileFormScreen({ navigation }) {
         notificationToken: notificationTokens?.compositeId || null,
         expoPushToken: notificationTokens?.expoPushToken || null,
       };
+
       console.log("Submitting form with tokens:", JSON.stringify(formDataWithTokens));
+
       // Step 2: Submit the form data to the server
       const response = await fetch("http://54.210.56.10/user/create-profile", {
         method: "POST",
@@ -112,31 +114,22 @@ export default function ProfileFormScreen({ navigation }) {
         const data = await response.json();
         console.log("Server response:", data);
 
-        // Register for push notifications with unique user ID
-        const userId = formData.username;
-        registerForPushNotificationsAsync(userId);
+        // REMOVE THIS SECOND REGISTRATION - it's redundant and causing issues
+        // const userId = formData.username;
+        // registerForPushNotificationsAsync(userId);
 
         Alert.alert("Profile Created", "Your profile has been created successfully");
         navigation.navigate("Location");
       } else {
-        const errorData = await response.json();
-        console.log("Server error:", errorData);
-        Alert.alert("Error", "An error occurred. Please try again.");
+        try {
+          const errorData = await response.json();
+          console.log("Server error:", errorData);
+          Alert.alert("Error", errorData.error || "An error occurred. Please try again.");
+        } catch (e) {
+          console.log("Error parsing server response:", e);
+          Alert.alert("Error", `Server returned status ${response.status}`);
+        }
       }
-
-      // __________TEST__________Simulate success for now_______________TO BE REMOVED!!!!!!!!!!!
-      // console.log("Submitting form:", JSON.stringify(formData));
-
-      // // Register for push notifications (with email for better identification)
-
-      // const userId = formData.username;
-      // const notificationTokens = await registerForPushNotificationsAsync(userId);
-      // console.log("Notification registration successful:", notificationTokens);
-
-      // setIsSubmitting(false);
-      // Alert.alert("Success", "Your profile has been saved successfully!");
-      // navigation.navigate("Location");
-      // __________TEST__________Simulate success for now_______________TO BE REMOVED!!!!!!!!!!!
     } catch (error) {
       console.log("Error submitting form:", error);
       setIsSubmitting(false);
