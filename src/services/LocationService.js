@@ -8,7 +8,7 @@ export async function sendLocationToServer(location) {
   const data = {
     username: username,
     latitude: String(location.coords.latitude),
-    longitude: String(location.coords.longitude),
+    longtitude: String(location.coords.longtitude),
   };
   console.log("Sending location data:", JSON.stringify(data));
   try {

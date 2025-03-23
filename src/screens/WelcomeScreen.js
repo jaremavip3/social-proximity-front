@@ -110,7 +110,7 @@ const WelcomeScreen = ({ navigation, route }) => {
       socketService.sendMessage("location_update", {
         username: username,
         latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        longtitude: location.coords.longtitude,
         timestamp: new Date().toISOString(),
       });
 

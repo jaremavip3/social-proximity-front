@@ -94,7 +94,7 @@ const LocationScreen = ({ navigation, route }) => {
             socketService.sendMessage("location_update", {
               username: username,
               latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
+              longtitude: location.coords.longtitude, //longtitude
               timestamp: new Date().toISOString(),
             });
           }
@@ -219,7 +219,7 @@ const LocationScreen = ({ navigation, route }) => {
     socketService.sendMessage("find_nearby", {
       username: username,
       latitude: location?.coords?.latitude,
-      longitude: location?.coords?.longitude,
+      longtitude: location?.coords?.longtitude,
       radius: 1000, // 1km radius
       timestamp: new Date().toISOString(),
     });
@@ -232,7 +232,7 @@ const LocationScreen = ({ navigation, route }) => {
   if (errorMsg) {
     locationText = errorMsg;
   } else if (location) {
-    locationText = `Username: ${username}\nLatitude: ${location.coords.latitude}\nLongitude: ${location.coords.longitude}`;
+    locationText = `Username: ${username}\nLatitude: ${location.coords.latitude}\nLongtitude: ${location.coords.longtitude}`;
   }
 
   const handleBackToWelcome = () => {
