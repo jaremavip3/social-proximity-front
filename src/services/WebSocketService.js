@@ -7,8 +7,6 @@ class WebSocketService {
   constructor() {
     this.socket = null;
     this.serverUrl = "ws://54.210.56.10:8080/ws";
-    this.bestMatchServerUrl = "ws://54.210.56.10:8080/ws";
-    this.currentServerUrl = null;
     this.isConnected = false;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
@@ -17,29 +15,29 @@ class WebSocketService {
     this.connectionListeners = [];
     this.username = null;
     this.appState = AppState.currentState;
-    this.connectionType = "default"; // "default" or "bestMatch"
 
-    // Зберігаємо підписку для можливості її видалення пізніше
+    // Store app state subscription for cleanup
     this.appStateSubscription = AppState.addEventListener("change", this._handleAppStateChange);
   }
 
+  // Handle app state changes (foreground/background)
   _handleAppStateChange = (nextAppState) => {
     if (this.appState.match(/inactive|background/) && nextAppState === "active") {
       // App has come to the foreground
+      console.log("App came to foreground - reconnecting WebSocket...");
       this.reconnect();
+    } else if (nextAppState.match(/inactive|background/) && this.appState === "active") {
+      // App has gone to the background - perform cleanup if needed
+      console.log("App went to background");
     }
     this.appState = nextAppState;
   };
 
   // Connect to WebSocket server
-  async connect(username, type = "default") {
+  async connect(username) {
     if (this.isConnected) {
-      // If already connected but to a different type of server, disconnect first
-      if (this.connectionType !== type) {
-        this.disconnect();
-      } else {
-        return true; // Already connected to the right server
-      }
+      console.log("WebSocket already connected");
+      return true;
     }
 
     try {
@@ -48,65 +46,104 @@ class WebSocketService {
       }
 
       this.username = username;
-      this.connectionType = type;
-
-      // Select the appropriate server URL based on type
-      this.currentServerUrl = type === "bestMatch" ? this.bestMatchServerUrl : this.serverUrl;
 
       // Store username for reconnection
       await AsyncStorage.setItem("username", username);
 
-      console.log(`Connecting to ${type} WebSocket as ${username}...`);
+      console.log(`Connecting to WebSocket as ${username}...`);
 
       // Create WebSocket connection with username as query parameter
-      this.socket = new WebSocket(`${this.currentServerUrl}?username=${encodeURIComponent(username)}`);
+      this.socket = new WebSocket(`${this.serverUrl}?username=${encodeURIComponent(username)}`);
 
       this.socket.onopen = () => {
-        console.log(`${type} WebSocket connection established`);
+        console.log("WebSocket connection established");
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this._notifyConnectionListeners(true);
 
+        // Notify listeners
+        this._notifyMessageListeners({
+          type: "connection_status",
+          payload: { status: "connected", username },
+          timestamp: new Date().toISOString(),
+        });
+
         // Vibrate to indicate connection
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Send initial presence message
+        this.sendMessage("presence", {
+          username: username,
+          status: "online",
+          timestamp: new Date().toISOString(),
+        });
       };
 
       this.socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log(`Received ${type} WebSocket message:`, message);
+          console.log(`Received WebSocket message:`, message);
           this._notifyMessageListeners(message);
 
-          // Vibrate for important messages
-          if (message.type === "proximity_alert" || message.type === "notification" || message.type === "best_match") {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          }
+          // Handle specific message types
+          this._handleSpecificMessageTypes(message);
         } catch (error) {
           console.error("Error parsing WebSocket message:", error);
         }
       };
 
       this.socket.onerror = (error) => {
-        console.error(`${type} WebSocket error:`, error);
+        console.error(`WebSocket error:`, error);
+        this._notifyMessageListeners({
+          type: "error",
+          payload: { message: "Connection error occurred" },
+          timestamp: new Date().toISOString(),
+        });
       };
 
       this.socket.onclose = (event) => {
-        console.log(`${type} WebSocket connection closed: ${event.code} ${event.reason}`);
+        console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
         this.isConnected = false;
         this._notifyConnectionListeners(false);
+
+        // Notify message listeners about disconnect
+        this._notifyMessageListeners({
+          type: "connection_status",
+          payload: { status: "disconnected", code: event.code, reason: event.reason },
+          timestamp: new Date().toISOString(),
+        });
+
         this._attemptReconnect();
       };
 
       return true;
     } catch (error) {
-      console.error(`Failed to establish ${type} WebSocket connection:`, error);
+      console.error(`Failed to establish WebSocket connection:`, error);
       return false;
     }
   }
 
-  // Connect specifically to the best match WebSocket
-  connectToBestMatch(username) {
-    return this.connect(username, "bestMatch");
+  // Handle specific message types with special behavior
+  _handleSpecificMessageTypes(message) {
+    if (!message || !message.type) return;
+
+    switch (message.type) {
+      case "proximity_alert":
+      case "notification":
+      case "match_found":
+      case "connection_request":
+        // Provide haptic feedback for important messages
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        break;
+      case "message":
+        // Provide lighter feedback for regular messages
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        break;
+      case "match_update":
+        // When new matches are found
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        break;
+    }
   }
 
   // Send a message through WebSocket
@@ -123,6 +160,7 @@ class WebSocketService {
         timestamp: new Date().toISOString(),
       });
 
+      console.log(`Sending WebSocket message: ${type}`);
       this.socket.send(message);
       return true;
     } catch (error) {
@@ -201,7 +239,7 @@ class WebSocketService {
     });
   }
 
-  // Attempt to reconnect
+  // Attempt to reconnect with exponential backoff
   _attemptReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.log("Max reconnect attempts reached");
@@ -215,7 +253,7 @@ class WebSocketService {
 
     clearTimeout(this.reconnectTimeout);
     this.reconnectTimeout = setTimeout(() => {
-      this.connect(this.username, this.connectionType);
+      this.connect(this.username);
     }, delay);
   }
 
@@ -228,13 +266,22 @@ class WebSocketService {
     this.reconnectAttempts = 0;
     clearTimeout(this.reconnectTimeout);
 
-    return this.connect(this.username, this.connectionType);
+    return this.connect(this.username);
   }
 
   // Disconnect WebSocket
   disconnect() {
     if (this.socket) {
       try {
+        // Send offline status before disconnecting
+        if (this.isConnected && this.username) {
+          this.sendMessage("presence", {
+            username: this.username,
+            status: "offline",
+            timestamp: new Date().toISOString(),
+          });
+        }
+
         this.socket.close(1000, "User initiated disconnect");
       } catch (error) {
         console.error("Error closing WebSocket:", error);
@@ -245,24 +292,46 @@ class WebSocketService {
     return true;
   }
 
-  connectToServer(serverUrl, username) {
-    // Disconnect from current connection if any
-    this.disconnect();
+  // Request matches specifically
+  requestMatches() {
+    if (!this.isConnected || !this.username) {
+      console.warn("Cannot request matches, not connected or no username");
+      return false;
+    }
 
-    // Set server URL
-    this.serverUrl = serverUrl;
-
-    // Connect
-    return this.connect(username);
+    return this.sendMessage("request_matches", {
+      username: this.username,
+      timestamp: new Date().toISOString(),
+    });
   }
+
+  // Send response to match (accept/reject)
+  sendMatchResponse(matchUsername, response) {
+    if (!this.isConnected || !this.username) {
+      console.warn("Cannot send match response, not connected or no username");
+      return false;
+    }
+
+    if (response !== "accept" && response !== "reject") {
+      console.warn("Invalid match response, must be 'accept' or 'reject'");
+      return false;
+    }
+
+    return this.sendMessage("match_response", {
+      from_username: this.username,
+      to_username: matchUsername,
+      response: response,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // Get connection status
   getStatus() {
     return {
       isConnected: this.isConnected,
       username: this.username,
       reconnectAttempts: this.reconnectAttempts,
-      connectionType: this.connectionType,
-      serverUrl: this.currentServerUrl,
+      serverUrl: this.serverUrl,
     };
   }
 
@@ -271,8 +340,9 @@ class WebSocketService {
     this.disconnect();
     this.messageListeners = [];
     this.connectionListeners = [];
+    clearTimeout(this.reconnectTimeout);
 
-    // Правильно видаляємо підписку
+    // Remove app state subscription
     if (this.appStateSubscription) {
       this.appStateSubscription.remove();
     }

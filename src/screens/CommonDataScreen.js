@@ -1,39 +1,109 @@
 import React, { useEffect, useState } from "react";
-
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { SvgXml } from "react-native-svg";
+import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import socketService from "../services/WebSocketService";
 
 const arrowBack = `
     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.1" d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" fill="#ffffff"></path> <path d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" stroke="#ffffff" stroke-width="2"></path> <path d="M8 12L16 12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11 9L8.08704 11.913V11.913C8.03897 11.961 8.03897 12.039 8.08704 12.087V12.087L11 15" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
-    `;
+`;
 
 export default function CommonDataScreen({ navigation, route }) {
   // Get userData from route params if available
   const [userData, setUserData] = useState(null);
+  const [currentUsername, setCurrentUsername] = useState(null);
+  const [wsConnected, setWsConnected] = useState(false);
 
   useEffect(() => {
+    // Load current user's username
+    const loadCurrentUsername = async () => {
+      try {
+        const username = await AsyncStorage.getItem("username");
+        if (username) {
+          setCurrentUsername(username);
+        }
+      } catch (error) {
+        console.error("Error loading username:", error);
+      }
+    };
+
+    loadCurrentUsername();
+
     // If userData is passed via navigation, use it
     if (route.params && route.params.userData) {
       setUserData(route.params.userData);
     } else {
       // Use default data if nothing is passed
       setUserData({
-        name: "user3",
+        name: "Sample User",
         ranking_position: 1,
-        skill_overlap: "High overlap in Java, SQL, and React skills.",
+        skill_overlap: "High overlap in Java, SQL, and React skills",
         complementary_strengths:
-          "user3 brings additional expertise in Next.js, Supabase, and REST APIs, enhancing full-stack capabilities.",
+          "Additional expertise in Next.js, Supabase, and REST APIs, enhancing full-stack capabilities",
         networking_potential:
-          "Strong potential for collaboration on AI, backend systems, and ML pipelines due to shared interests and complementary skills.",
-        suggested_collaboration: "Joint projects in full-stack development with AI integration.",
-        reason: "High skill overlap and complementary strengths in full-stack development and AI-related interests.",
+          "Strong potential for collaboration on AI, backend systems, and ML pipelines due to shared interests and complementary skills",
+        suggested_collaboration: "Joint projects in full-stack development with AI integration",
+        reason: "High skill overlap and complementary strengths in full-stack development and AI-related interests",
         match_score: 0.9,
       });
     }
+
+    // Set up WebSocket connection status listener
+    socketService.addConnectionListener(setWsConnected);
+
+    // Cleanup on unmount
+    return () => {
+      socketService.removeConnectionListener(setWsConnected);
+    };
   }, [route.params]);
 
   const handleGoToWelcome = () => {
     navigation.navigate("Welcome");
+  };
+
+  const handleGoBackToMatches = () => {
+    navigation.navigate("BestMatch");
+  };
+
+  // Handle confirming connection with this user
+  const handleConfirmConnection = () => {
+    if (!currentUsername || !userData) return;
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Send connection confirmation message via WebSocket
+    if (socketService.isConnected) {
+      socketService.sendMessage("connection_confirmed", {
+        from_username: currentUsername,
+        to_username: userData.username || userData.name,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    Alert.alert("Connection Confirmed", `You've confirmed a connection with ${userData.username || userData.name}!`, [
+      { text: "Back to Matches", onPress: () => navigation.navigate("BestMatch") },
+      { text: "Go to Welcome", onPress: () => navigation.navigate("Welcome") },
+    ]);
+  };
+
+  // Handle declining connection with this user
+  const handleDeclineConnection = () => {
+    if (!currentUsername || !userData) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Send decline connection message via WebSocket
+    if (socketService.isConnected) {
+      socketService.sendMessage("connection_declined", {
+        from_username: currentUsername,
+        to_username: userData.username || userData.name,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Go back to the matches screen
+    navigation.navigate("BestMatch");
   };
 
   //   PROGRESS CIRCLE COMPONENT
@@ -96,6 +166,7 @@ export default function CommonDataScreen({ navigation, route }) {
       </View>
     );
   }
+
   //   CARD COMPONENT
   function InfoCard({ icon, title, description }) {
     return (
@@ -108,6 +179,13 @@ export default function CommonDataScreen({ navigation, route }) {
       </View>
     );
   }
+
+  // Connection status indicator
+  const renderConnectionStatus = () => (
+    <View style={[styles.connectionStatus, wsConnected ? styles.connected : styles.disconnected]}>
+      <Text style={styles.connectionText}>{wsConnected ? "Connected" : "Disconnected"}</Text>
+    </View>
+  );
 
   // If userData isn't loaded yet, show a loading state
   if (!userData) {
@@ -122,10 +200,13 @@ export default function CommonDataScreen({ navigation, route }) {
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <Text style={styles.title}>User Profile</Text>
-        <TouchableOpacity style={styles.arrowBack} activeOpacity={0.5} onPress={handleGoToWelcome}>
+        <TouchableOpacity style={styles.arrowBack} activeOpacity={0.5} onPress={handleGoBackToMatches}>
           <SvgXml xml={arrowBack} width={35} height={35} />
         </TouchableOpacity>
       </View>
+
+      {/* Connection status indicator */}
+      {renderConnectionStatus()}
 
       <View style={styles.profileHeader}>
         <View style={styles.userInfo}>
@@ -163,6 +244,17 @@ export default function CommonDataScreen({ navigation, route }) {
           <InfoCard icon="💡" title="Why You Matched" description={userData.reason} />
         )}
       </ScrollView>
+
+      {/* Decision buttons */}
+      <View style={styles.decisionContainer}>
+        <TouchableOpacity style={[styles.decisionButton, styles.declineButton]} onPress={handleDeclineConnection}>
+          <Text style={styles.decisionButtonText}>Back to Matches</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.decisionButton, styles.confirmButton]} onPress={handleConfirmConnection}>
+          <Text style={styles.decisionButtonText}>Connect</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -190,12 +282,34 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#fff",
   },
+  connectionStatus: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignSelf: "center",
+    marginVertical: 10,
+  },
+  connected: {
+    backgroundColor: "rgba(76, 175, 80, 0.2)",
+    borderWidth: 1,
+    borderColor: "#4CAF50",
+  },
+  disconnected: {
+    backgroundColor: "rgba(244, 67, 54, 0.2)",
+    borderWidth: 1,
+    borderColor: "#F44336",
+  },
+  connectionText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
   profileHeader: {
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: 20,
   },
   userInfo: {
     flex: 1,
@@ -292,5 +406,30 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
+  },
+  decisionContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    paddingBottom: 10,
+  },
+  decisionButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    margin: 5,
+  },
+  confirmButton: {
+    backgroundColor: "#4CAF50", // Green
+  },
+  declineButton: {
+    backgroundColor: "#757575", // Gray
+  },
+  decisionButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

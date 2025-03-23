@@ -8,13 +8,6 @@ export async function getClosestUsers(username) {
         "Content-Type": "application/json",
       },
     });
-    // const response = await fetch("http://54.210.56.10/location/save", {
-    //       method: "POST",
-    //       headers: {
-    //         "Content-Type": "application/json",
-    //       },
-    //       body: JSON.stringify(data),
-    //     });
 
     console.log(`Response status: ${response.status}`);
     if (!response.ok) {
