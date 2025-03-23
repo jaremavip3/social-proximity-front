@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import * as Haptics from "expo-haptics";
 
 import {
   StyleSheet,
@@ -136,7 +137,14 @@ export default function ProfileFormScreen({ navigation }) {
           <View style={styles.formContainer}>
             <View style={styles.headerContainer}>
               <Text style={styles.title}>Create Your Profile</Text>
-              <TouchableOpacity style={styles.arrowBack} activeOpacity={0.5} onPress={handleGoToWelcome}>
+              <TouchableOpacity
+                style={styles.arrowBack}
+                activeOpacity={0.5}
+                onPress={() => {
+                  handleGoToWelcome();
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+                }}
+              >
                 <SvgXml xml={arrowBack} width={35} height={35} />
               </TouchableOpacity>
             </View>
@@ -175,13 +183,23 @@ export default function ProfileFormScreen({ navigation }) {
 
             <TouchableOpacity
               style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
+              onPress={() => {
+                handleSubmit();
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }}
               activeOpacity={0.5}
               disabled={isSubmitting}
             >
               <Text style={styles.submitButtonText}>{isSubmitting ? "Submitting..." : "Submit Profile"}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.backButton} activeOpacity={0.5} onPress={handleGoToWelcome}>
+            <TouchableOpacity
+              style={styles.backButton}
+              activeOpacity={0.5}
+              onPress={() => {
+                handleGoToWelcome();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+              }}
+            >
               <Text style={styles.submitButtonText}>Go Back</Text>
             </TouchableOpacity>
           </View>

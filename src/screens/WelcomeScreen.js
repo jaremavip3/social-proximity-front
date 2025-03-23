@@ -1,6 +1,8 @@
 import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { SvgXml } from "react-native-svg";
+import * as Haptics from "expo-haptics";
+
 import Animated, { useAnimatedStyle, useAnimatedSensor, SensorType, withSpring } from "react-native-reanimated";
 
 const compassSvg = `
@@ -49,7 +51,14 @@ const WelcomeScreen = ({ navigation, route }) => {
       <View style={styles.optionsContainer}>
         <Text style={styles.choiceText}>What would you like to do?</Text>
 
-        <TouchableOpacity style={[styles.button, styles.startButton]} activeOpacity={0.5} onPress={handleStartApp}>
+        <TouchableOpacity
+          style={[styles.button, styles.startButton]}
+          activeOpacity={0.5}
+          onPress={() => {
+            handleStartApp();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }}
+        >
           <Text style={styles.buttonText}>Start App</Text>
         </TouchableOpacity>
 
