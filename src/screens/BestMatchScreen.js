@@ -2,99 +2,97 @@ import React, { useState, useEffect } from "react";
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { SvgXml } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-import socketService from "../services/WebSocketService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getClosestUsers } from "../services/MatchService";
 
 const arrowBack = `
     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.1" d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" fill="#ffffff"></path> <path d="M3 12C3 4.5885 4.5885 3 12 3C19.4115 3 21 4.5885 21 12C21 19.4115 19.4115 21 12 21C4.5885 21 3 19.4115 3 12Z" stroke="#ffffff" stroke-width="2"></path> <path d="M8 12L16 12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11 9L8.08704 11.913V11.913C8.03897 11.961 8.03897 12.039 8.08704 12.087V12.087L11 15" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
 `;
 
 export default function BestMatchScreen({ navigation }) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentMatch, setCurrentMatch] = useState(null);
-  const [wsConnected, setWsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername] = useState(null);
+  const [rankings, setRankings] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Connect to WebSocket and listen for messages
+  // Load username when component mounts
   useEffect(() => {
-    // Set up WebSocket connection status listener
-    socketService.addConnectionListener(setWsConnected);
-
-    // Set up message listener for WebSocket
-    socketService.addMessageListener(handleWebSocketMessage);
-
-    // Request a best match when component mounts
-    requestBestMatch();
-
-    // Clean up on unmount
-    return () => {
-      socketService.removeConnectionListener(setWsConnected);
-      socketService.removeMessageListener(handleWebSocketMessage);
+    const loadUsername = async () => {
+      try {
+        const savedUsername = await AsyncStorage.getItem("username");
+        if (savedUsername) {
+          setUsername(savedUsername);
+          // Fetch matches automatically when username is loaded
+          fetchMatches(savedUsername);
+        } else {
+          Alert.alert("Profile Required", "You need to create a profile before finding matches.", [
+            { text: "OK", onPress: () => navigation.navigate("Profile") },
+          ]);
+        }
+      } catch (error) {
+        console.error("Error loading username:", error);
+      }
     };
+
+    loadUsername();
   }, []);
 
-  // Handle WebSocket messages
-  const handleWebSocketMessage = (message) => {
-    if (message.type === "best_match") {
-      setIsLoading(false);
-      setCurrentMatch(message.payload);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else if (message.type === "best_match_error") {
-      setIsLoading(false);
-      Alert.alert("Match Error", message.payload.message || "Failed to find a match for you.");
-    }
-  };
-
-  // Request a best match from the server
-  const requestBestMatch = () => {
-    const requestBestMatch = () => {
-      setIsLoading(true);
-
-      if (!wsConnected) {
-        socketService.reconnect();
-        Alert.alert("Connection Required", "Connecting to server...");
-        return;
+  // Function to fetch matches
+  const fetchMatches = async (user) => {
+    setIsLoading(true);
+    try {
+      const data = await getClosestUsers(user || username);
+      if (data.error) {
+        Alert.alert("Error", data.error);
+      } else if (data.rankings && data.rankings.length > 0) {
+        setRankings(data.rankings);
+        setCurrentIndex(0);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert("No Matches", "No matches found at this time.");
       }
-
-      // Send the match request
-      socketService.sendMessage("find_best_match", {
-        username: username,
-        timestamp: new Date().toISOString(),
-      });
-
-      console.log("Best match request sent");
-    };
+    } catch (error) {
+      console.error("Error fetching matches:", error);
+      Alert.alert("Error", "Failed to fetch matches. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Handle accepting a match
   const handleAcceptMatch = () => {
+    if (!rankings.length) return;
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Notify server that match was accepted
-    socketService.sendMessage("accept_match", {
-      matchedUsername: currentMatch.username,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Navigate to the CommonData screen with the match data
-    navigation.navigate("CommonData", { userData: currentMatch });
+    // Navigate to the CommonData screen with the current match data
+    navigation.navigate("CommonData", { userData: rankings[currentIndex] });
   };
 
-  // Handle rejecting a match
+  // Handle rejecting a match / going to next match
   const handleRejectMatch = () => {
+    if (!rankings.length) return;
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Notify server that match was rejected
-    socketService.sendMessage("reject_match", {
-      matchedUsername: currentMatch.username,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Request another match
-    requestBestMatch();
+    if (currentIndex < rankings.length - 1) {
+      // Go to next match if available
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      // No more matches, ask to refresh
+      Alert.alert("End of Matches", "You've seen all available matches. Would you like to refresh?", [
+        { text: "No", style: "cancel" },
+        { text: "Yes", onPress: () => fetchMatches() },
+      ]);
+    }
   };
 
   const handleGoToWelcome = () => {
     navigation.navigate("Welcome");
   };
+
+  // Get current match
+  const currentMatch = rankings.length > 0 ? rankings[currentIndex] : null;
 
   return (
     <View style={styles.container}>
@@ -108,7 +106,7 @@ export default function BestMatchScreen({ navigation }) {
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#F5A623" />
-          <Text style={styles.loadingText}>Finding your best match...</Text>
+          <Text style={styles.loadingText}>Finding your best matches...</Text>
         </View>
       ) : currentMatch ? (
         <View style={styles.matchContainer}>
@@ -135,6 +133,13 @@ export default function BestMatchScreen({ navigation }) {
                 <Text style={styles.infoValue}>{currentMatch.reason}</Text>
               </View>
             )}
+
+            {/* Ranking position indicator */}
+            <View style={styles.rankingInfo}>
+              <Text style={styles.rankingText}>
+                Match {currentIndex + 1} of {rankings.length}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.actionContainer}>
@@ -150,7 +155,7 @@ export default function BestMatchScreen({ navigation }) {
       ) : (
         <View style={styles.noMatchContainer}>
           <Text style={styles.noMatchText}>No matches available right now.</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={requestBestMatch}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => fetchMatches()}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -158,6 +163,8 @@ export default function BestMatchScreen({ navigation }) {
     </View>
   );
 }
+
+// Keep your existing styles
 
 const styles = StyleSheet.create({
   container: {
