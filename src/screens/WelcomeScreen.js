@@ -98,6 +98,9 @@ const WelcomeScreen = ({ navigation, route }) => {
   const handleGoToCOMMOND_DATA_SCREEN = () => {
     navigation.navigate("CommonData");
   };
+  const handleGoToBestMatchScreen = () => {
+    navigation.navigate("BestMatch");
+  };
 
   //_____ANIMATION_____
   const gravity = useAnimatedSensor(SensorType.GRAVITY);
@@ -158,6 +161,14 @@ const WelcomeScreen = ({ navigation, route }) => {
           onPress={handleGoToCOMMOND_DATA_SCREEN}
         >
           <Text style={styles.buttonText}>TEST COMMOND_DATA</Text>
+        </TouchableOpacity>
+        {/* Best match test button */}
+        <TouchableOpacity
+          style={[styles.button, styles.profileButton]}
+          activeOpacity={0.5}
+          onPress={handleGoToBestMatchScreen}
+        >
+          <Text style={styles.buttonText}>TEST BEST_MATCH</Text>
         </TouchableOpacity>
 
         {/* Only show remove button if username exists */}
