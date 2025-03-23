@@ -6,8 +6,8 @@ import * as Haptics from "expo-haptics";
 class WebSocketService {
   constructor() {
     this.socket = null;
-    this.serverUrl = "ws://54.210.56.10:8080/ws"; // Original URL
-    this.bestMatchServerUrl = "ws://localhost:8090/ws"; // Your friend's URL for best match
+    this.serverUrl = "ws://54.210.56.10:8080/ws";
+    this.bestMatchServerUrl = "ws://54.210.56.10:8080/ws";
     this.currentServerUrl = null;
     this.isConnected = false;
     this.reconnectAttempts = 0;
@@ -233,8 +233,6 @@ class WebSocketService {
 
   // Disconnect WebSocket
   disconnect() {
-    clearTimeout(this.reconnectTimeout);
-
     if (this.socket) {
       try {
         this.socket.close(1000, "User initiated disconnect");
@@ -242,12 +240,21 @@ class WebSocketService {
         console.error("Error closing WebSocket:", error);
       }
       this.socket = null;
+      this.isConnected = false;
     }
-
-    this.isConnected = false;
     return true;
   }
 
+  connectToServer(serverUrl, username) {
+    // Disconnect from current connection if any
+    this.disconnect();
+
+    // Set server URL
+    this.serverUrl = serverUrl;
+
+    // Connect
+    return this.connect(username);
+  }
   // Get connection status
   getStatus() {
     return {

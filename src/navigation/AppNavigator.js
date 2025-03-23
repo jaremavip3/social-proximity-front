@@ -6,6 +6,7 @@ import WelcomeScreen from "../screens/WelcomeScreen";
 import LocationScreen from "../screens/LocationScreen";
 import ProfileFormScreen from "../screens/ProfileFormScreen";
 import CommonDataScreen from "../screens/CommonDataScreen";
+import BestMatchScreen from "../screens/BestMatchScreen";
 
 const Stack = createNativeStackNavigator();
 

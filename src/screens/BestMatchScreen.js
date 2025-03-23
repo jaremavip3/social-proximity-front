@@ -45,18 +45,23 @@ export default function BestMatchScreen({ navigation }) {
 
   // Request a best match from the server
   const requestBestMatch = () => {
-    setIsLoading(true);
-    if (!wsConnected) {
-      // Try to reconnect if not connected
-      socketService.reconnect();
-      Alert.alert("Connection Required", "Connecting to server to find your best match...", [{ text: "OK" }]);
-      return;
-    }
+    const requestBestMatch = () => {
+      setIsLoading(true);
 
-    // Send request for best match
-    socketService.sendMessage("find_best_match", {
-      timestamp: new Date().toISOString(),
-    });
+      if (!wsConnected) {
+        socketService.reconnect();
+        Alert.alert("Connection Required", "Connecting to server...");
+        return;
+      }
+
+      // Send the match request
+      socketService.sendMessage("find_best_match", {
+        username: username,
+        timestamp: new Date().toISOString(),
+      });
+
+      console.log("Best match request sent");
+    };
   };
 
   // Handle accepting a match
